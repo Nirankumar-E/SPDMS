@@ -9,7 +9,7 @@ const LeftSidebar = () => {
         <Link href={service.href} key={index}>
           <div
             className={cn(
-              'flex items-center text-white p-3 rounded-md transition-transform duration-200 hover:scale-105 hover:shadow-lg',
+              'flex items-center text-black p-3 rounded-md transition-transform duration-200 hover:scale-105 hover:shadow-lg',
               service.color
             )}
           >
