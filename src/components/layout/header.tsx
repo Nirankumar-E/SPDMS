@@ -21,14 +21,6 @@ const Header = () => {
             <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('TA')}>தமிழ்</Button>
             <span className="text-sm">|</span>
             <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('EN')}>English</Button>
-            <div className="flex items-center gap-1 ml-2">
-              <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-primary/80">
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-primary/80">
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
         </div>
       </div>
