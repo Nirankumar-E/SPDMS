@@ -46,7 +46,7 @@ const Footer = () => {
 
           {/* Column 4: Contact Details */}
           <div>
-            <h4 className="text-lg font-bold mb-4 font-headline">தொடர்பு వివరங்கள்</h4>
+            <h4 className="text-lg font-bold mb-4 font-headline">தொடர்பு விவரங்கள்</h4>
             <ul className="space-y-3">
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-gray-400" />
@@ -66,11 +66,7 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-gray-700 pt-6 mt-8 flex flex-col md:flex-row justify-between items-center text-center md:text-left">
-          <p className="text-sm text-gray-400 mb-4 md:mb-0">&copy; {new Date().getFullYear()} TN-PDS Portal Replica. All Rights Reserved.</p>
-          <div className="flex items-center gap-2">
-            <GovernmentEmblem className="h-8 w-8" />
-            <span className="text-sm text-gray-400">Designed & Developed by You.</span>
-          </div>
+          <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} TN-PDS Portal. All Rights Reserved.</p>
         </div>
       </div>
     </footer>
