@@ -5,28 +5,13 @@ import { Button } from "@/components/ui/button";
 import GovernmentEmblem from '@/components/icons/government-emblem';
 import Link from 'next/link';
 import { User } from 'lucide-react';
-import { useUser } from '@/firebase/auth/use-user';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const Header = () => {
   const [language, setLanguage] = useState<'TA' | 'EN'>('TA');
-  const { user, loading } = useUser();
 
   const AuthButton = () => {
-    if (loading) {
-      return <Skeleton className="h-7 w-28" />;
-    }
-    if (user) {
-      return (
-        <Link href="/dashboard">
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
-            <User className="h-4 w-4" /> My Profile
-          </Button>
-        </Link>
-      );
-    }
     return (
-      <Link href="/login">
+      <Link href="#">
         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
           <User className="h-4 w-4" /> Citizen Login
         </Button>
