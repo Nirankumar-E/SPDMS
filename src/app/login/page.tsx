@@ -52,9 +52,9 @@ export default function LoginPage() {
     // TODO: Implement actual Firebase OTP verification
     toast({
         title: "Login Successful",
-        description: "Redirecting to your dashboard...",
+        description: "Redirecting to the main page...",
     });
-    router.push('/dashboard');
+    router.push('/');
   };
 
   return (
