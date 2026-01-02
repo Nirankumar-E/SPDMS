@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut } from "lucide-react";
 import GovernmentEmblem from '@/components/icons/government-emblem';
+import Link from 'next/link';
+import { User } from 'lucide-react';
 
 const Header = () => {
   const [language, setLanguage] = useState<'TA' | 'EN'>('TA');
@@ -17,10 +18,17 @@ const Header = () => {
             <span>Helpline: </span>
             <a href="tel:1967" className="hover:underline">1967</a> | <a href="tel:18004255901" className="hover:underline">1800-425-5901</a>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('TA')}>தமிழ்</Button>
-            <span className="text-sm">|</span>
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('EN')}>English</Button>
+          <div className="flex items-center gap-4">
+             <Link href="/login">
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
+                    <User className="h-4 w-4" /> Citizen Login
+                </Button>
+            </Link>
+            <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('TA')}>தமிழ்</Button>
+                <span className="text-sm">|</span>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('EN')}>English</Button>
+            </div>
           </div>
         </div>
       </div>
