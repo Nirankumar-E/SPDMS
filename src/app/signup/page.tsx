@@ -66,8 +66,8 @@ export default function SignupPage() {
         return;
     }
     // TODO: Implement actual Firebase user creation
-    toast({ title: "Account Created", description: "You will be redirected to the login page." });
-    router.push('/login');
+    toast({ title: "Account Created", description: "You will be redirected to the main page." });
+    router.push('/');
   };
 
   const CurrentStepIcon = steps[step-1].icon;
