@@ -48,7 +48,7 @@ const Header = () => {
     }
 
     return (
-      <Link href="/login">
+      <Link href="/signup">
         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
           <User className="h-4 w-4" /> Citizen Login
         </Button>
