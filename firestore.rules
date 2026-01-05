@@ -1,0 +1,119 @@
+/**
+ * This ruleset enforces a strict user-ownership model for the TN-PDS portal replica.
+ * A user's authentication UID is expected to match the {beneficiaryId} in the path,
+ * giving them exclusive control over their personal data and submitted grievances.
+ *
+ * Core Philosophy:
+ * The security model is centered on the 'Beneficiary'. Users can only access data
+ * within their own document tree (/beneficiaries/{userId}/...). This ensures strong
+ * data privacy and prevents users from accessing or even knowing about other users.
+ *
+ * Data Structure:
+ * - /beneficiaries/{beneficiaryId}: The root document for a user's private data.
+ * - /beneficiaries/{beneficiaryId}/grievances/{grievanceId}: A subcollection for
+ *   grievances, inheriting access control from its parent beneficiary document.
+ * - /family_cards/{familyCardNumber}: A top-level collection for reference data.
+ *   This data is considered read-only for all authenticated users.
+ *
+ * Key Security Decisions:
+ * - User Isolation: Listing all beneficiaries is explicitly disallowed to protect
+ *   user privacy and prevent data scraping.
+ * - Read-Only Reference Data: The `/family_cards` collection is readable by any
+ *   signed-in user but cannot be modified by clients. This assumes the data is
+ *   populated and managed by a trusted backend process or administrator.
+ * - Ownership Enforcement: All write operations within a user's data tree
+ *   are strictly limited to the authenticated owner of that tree.
+ * - Denormalization for Authorization: The `grievance` documents must contain a
+ *   `beneficiaryId` field that matches the parent document's ID. This is validated
+ *   on creation to ensure relational integrity without needing extra database reads.
+ *
+ * Structural Segregation:
+ * Private user data (/beneficiaries) is structurally separate from semi-public
+ * reference data (/family_cards). This separation simplifies rules and improves
+ * query performance and security, as rules for one collection do not affect the other.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for reusable logic
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Checks if the requesting user's UID matches the document's owner ID.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Checks for ownership on existing documents for update/delete operations.
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+    
+    // Validates that the beneficiary ID in the path matches the ID in the new document.
+    function newBeneficiaryDataIsValid(beneficiaryId) {
+      return request.resource.data.id == beneficiaryId;
+    }
+    
+    // Enforces the immutability of the beneficiary ID field on update.
+    function existingBeneficiaryDataIsValid() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    // Validates that a new grievance is being created for the correct beneficiary.
+    function newGrievanceDataIsValid(beneficiaryId) {
+      return request.resource.data.beneficiaryId == beneficiaryId;
+    }
+    
+    // Enforces the immutability of the beneficiaryId field within a grievance on update.
+    function existingGrievanceDataIsValid() {
+      return request.resource.data.beneficiaryId == resource.data.beneficiaryId;
+    }
+    
+    /**
+     * @description Controls access to a beneficiary's primary document.
+     * @path /beneficiaries/{beneficiaryId}
+     * @allow (create) An authenticated user creating their own beneficiary document for the first time.
+     * @deny (get) An authenticated user attempting to read another user's beneficiary document.
+     * @principle Restricts access to a user's own data tree and validates relational integrity.
+     */
+    match /beneficiaries/{beneficiaryId} {
+      allow get: if isOwner(beneficiaryId);
+      allow list: if false;
+      allow create: if isOwner(beneficiaryId) && newBeneficiaryDataIsValid(beneficiaryId);
+      allow update: if isExistingOwner(beneficiaryId) && existingBeneficiaryDataIsValid();
+      allow delete: if isExistingOwner(beneficiaryId);
+
+      /**
+       * @description Controls access to grievances submitted by a specific beneficiary.
+       * @path /beneficiaries/{beneficiaryId}/grievances/{grievanceId}
+       * @allow (create) An authenticated user creating a new grievance under their own beneficiary profile.
+       * @deny (list) An authenticated user attempting to list grievances for another beneficiary.
+       * @principle Enforces document ownership via the parent path and validates relational integrity.
+       */
+      match /grievances/{grievanceId} {
+        allow get: if isOwner(beneficiaryId);
+        allow list: if isOwner(beneficiaryId);
+        allow create: if isOwner(beneficiaryId) && newGrievanceDataIsValid(beneficiaryId);
+        allow update: if isExistingOwner(beneficiaryId) && existingGrievanceDataIsValid();
+        allow delete: if isExistingOwner(beneficiaryId);
+      }
+    }
+
+    /**
+     * @description Controls access to the collection of family card reference data.
+     * @path /family_cards/{familyCardNumber}
+     * @allow (get) Any signed-in user reading a specific family card document.
+     * @deny (create) Any user attempting to create a new family card document from the client.
+     * @principle Treats this collection as read-only reference data for clients.
+     */
+    match /family_cards/{familyCardNumber} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

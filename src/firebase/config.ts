@@ -1,14 +1,8 @@
-// @ts-nocheck
-// This file is not intended to be edited.
-//
-// To change the configuration for this project, it is recommended to use
-// the Firebase Studio UI.
-import { FirebaseOptions, initializeApp } from 'firebase/app';
-
-const firebaseConfig: FirebaseOptions = JSON.parse(
-  process.env.NEXT_PUBLIC_FIREBASE_CONFIG || '{}'
-);
-
-// This is a browser-only initialization.
-// This should not be used in server-side code.
-export const app = initializeApp(firebaseConfig);
+export const firebaseConfig = {
+  "projectId": "studio-1391738464-6c191",
+  "appId": "1:949245232462:web:82e3b2eeda130e1eda0a1f",
+  "apiKey": "AIzaSyAjDO-kVuCX5uP01hDJKa3Q-xHSGYL3wxE",
+  "authDomain": "studio-1391738464-6c191.firebaseapp.com",
+  "measurementId": "",
+  "messagingSenderId": "949245232462"
+};

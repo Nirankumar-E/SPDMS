@@ -1,0 +1,189 @@
+{
+  "entities": {
+    "Beneficiary": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Beneficiary",
+      "type": "object",
+      "description": "Represents a beneficiary of the Tamil Nadu Public Distribution System.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Beneficiary entity."
+        },
+        "familyCardNumber": {
+          "type": "string",
+          "description": "The unique identifier of the family card associated with the beneficiary."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the beneficiary."
+        },
+        "dateOfBirth": {
+          "type": "string",
+          "description": "Date of birth of the beneficiary.",
+          "format": "date-time"
+        },
+        "gender": {
+          "type": "string",
+          "description": "Gender of the beneficiary."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Phone number of the beneficiary."
+        },
+        "address": {
+          "type": "string",
+          "description": "Address of the beneficiary."
+        }
+      },
+      "required": [
+        "id",
+        "familyCardNumber",
+        "name",
+        "dateOfBirth",
+        "gender",
+        "phoneNumber",
+        "address"
+      ]
+    },
+    "FamilyCard": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FamilyCard",
+      "type": "object",
+      "description": "Represents a family card within the Tamil Nadu Public Distribution System.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the FamilyCard entity."
+        },
+        "cardNumber": {
+          "type": "string",
+          "description": "The family card number."
+        },
+        "cardType": {
+          "type": "string",
+          "description": "Type of family card (e.g., AAY, PHH)."
+        },
+        "address": {
+          "type": "string",
+          "description": "Address associated with the family card."
+        },
+        "district": {
+          "type": "string",
+          "description": "District where the family card is registered."
+        },
+        "taluk": {
+          "type": "string",
+          "description": "Taluk where the family card is registered."
+        }
+      },
+      "required": [
+        "id",
+        "cardNumber",
+        "cardType",
+        "address",
+        "district",
+        "taluk"
+      ]
+    },
+    "Grievance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Grievance",
+      "type": "object",
+      "description": "Represents a grievance submitted by a beneficiary.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Grievance entity."
+        },
+        "beneficiaryId": {
+          "type": "string",
+          "description": "Reference to Beneficiary. (Relationship: Beneficiary 1:N Grievance)"
+        },
+        "submissionDate": {
+          "type": "string",
+          "description": "Date when the grievance was submitted.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the grievance."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the grievance (e.g., Open, In Progress, Resolved)."
+        }
+      },
+      "required": [
+        "id",
+        "beneficiaryId",
+        "submissionDate",
+        "description",
+        "status"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/beneficiaries/{beneficiaryId}",
+        "definition": {
+          "entityName": "Beneficiary",
+          "schema": {
+            "$ref": "#/backend/entities/Beneficiary"
+          },
+          "description": "Stores beneficiary data.  Includes 'id' as document id.",
+          "params": [
+            {
+              "name": "beneficiaryId",
+              "description": "The unique identifier for the beneficiary."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/family_cards/{familyCardNumber}",
+        "definition": {
+          "entityName": "FamilyCard",
+          "schema": {
+            "$ref": "#/backend/entities/FamilyCard"
+          },
+          "description": "Stores family card information. Includes 'cardNumber' as document id.",
+          "params": [
+            {
+              "name": "familyCardNumber",
+              "description": "The unique family card number."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/beneficiaries/{beneficiaryId}/grievances/{grievanceId}",
+        "definition": {
+          "entityName": "Grievance",
+          "schema": {
+            "$ref": "#/backend/entities/Grievance"
+          },
+          "description": "Stores grievances submitted by a beneficiary.  Includes denormalized 'beneficiaryId' field for querying.",
+          "params": [
+            {
+              "name": "beneficiaryId",
+              "description": "The unique identifier for the beneficiary."
+            },
+            {
+              "name": "grievanceId",
+              "description": "The unique identifier for the grievance."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the TN-PDS portal replica, focusing on beneficiary data, family card information, and grievance submissions. The structure prioritizes authorization independence and supports QAPs through structural segregation.\n\n*   **Beneficiaries:** Beneficiary data is stored under the `/beneficiaries/{beneficiaryId}` path.  This allows for easy retrieval of individual beneficiary records and efficient querying.\n*   **Family Cards:** Family card information is stored under the `/family_cards/{familyCardNumber}` path.  The `cardNumber` is used as the document ID, ensuring uniqueness and direct access. This segregation supports QAPs by allowing for secure listing of family cards without exposing other data.\n*   **Grievances:** Grievances are stored in a subcollection under each beneficiary's document at `/beneficiaries/{beneficiaryId}/grievances/{grievanceId}`. This structure establishes a clear parent-child relationship between beneficiaries and their grievances. The `beneficiaryId` is also included as a field within the grievance document to enable efficient querying.\n\nThis design ensures authorization independence by avoiding hierarchical authorization dependencies. Each top-level collection (`beneficiaries`, `family_cards`) can be secured independently. The subcollection `/beneficiaries/{beneficiaryId}/grievances/{grievanceId}` inherits its authorization context from the parent beneficiary document. This allows for atomic operations and simplifies security rules. QAPs are supported through the segregated structure, allowing for secure listing of beneficiaries and family cards, and filtering of grievances based on the `beneficiaryId`."
+  }
+}
