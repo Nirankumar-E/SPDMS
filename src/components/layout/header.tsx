@@ -12,50 +12,6 @@ import { useUser } from '@/firebase';
 
 const Header = () => {
   const [language, setLanguage] = useState<'TA' | 'EN'>('TA');
-  const { user, loading } = useUser();
-  const auth = useAuth();
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    if (auth) {
-      await signOut(auth);
-    }
-    router.push('/');
-  };
-
-  const AuthButton = () => {
-    if (loading) {
-      return (
-        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled>
-          Loading...
-        </Button>
-      );
-    }
-
-    if (user) {
-      return (
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
-              <User className="h-4 w-4" /> My Profile
-            </Button>
-          </Link>
-          <Button onClick={handleLogout} variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
-            <LogOut className="h-4 w-4" /> Logout
-          </Button>
-        </div>
-      );
-    }
-
-    return (
-      <Link href="/signup">
-        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
-          <User className="h-4 w-4" /> Citizen Login
-        </Button>
-      </Link>
-    );
-  };
-
 
   return (
     <header className="bg-white shadow-md">
@@ -67,7 +23,6 @@ const Header = () => {
             <a href="tel:1967" className="hover:underline">1967</a> | <a href="tel:18004255901" className="hover:underline">1800-425-5901</a>
           </div>
           <div className="flex items-center gap-4">
-             <AuthButton />
             <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('TA')}>தமிழ்</Button>
                 <span className="text-sm">|</span>
