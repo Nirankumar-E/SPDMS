@@ -24,13 +24,6 @@ const Header = () => {
                 <span className="text-sm">|</span>
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('EN')}>English</Button>
             </div>
-             <div className="flex items-center gap-2">
-                <Link href="/signup">
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
-                      <LogIn /> Citizen Login
-                    </Button>
-                </Link>
-            </div>
           </div>
         </div>
       </div>
