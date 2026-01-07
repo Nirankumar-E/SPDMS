@@ -51,7 +51,14 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScanSuccess, onClose }) => {
           },
           (decodedText) => {
             // successful scan
-            onScanSuccess(decodedText);
+            if (html5QrCode.isScanning) {
+              html5QrCode.stop().then(() => {
+                onScanSuccess(decodedText);
+              }).catch(err => {
+                console.error("Error stopping scanner after success:", err);
+                onScanSuccess(decodedText); // Proceed even if stop fails
+              });
+            }
           },
           (errorMessage) => {
             // parse error, ignore.
