@@ -22,7 +22,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import GovernmentEmblem from '@/components/icons/government-emblem';
 import QrScanner from '@/components/auth/QrScanner';
-import { QrCode } from 'lucide-react';
+import { QrCode, X } from 'lucide-react';
 
 // Extend the Window interface to include properties for Firebase Auth
 declare global {
@@ -52,14 +52,15 @@ export default function LoginPage() {
 
   const setupRecaptcha = () => {
     if (!auth) return;
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+    if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+    }
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
         callback: () => {
           // reCAPTCHA solved, allow signInWithPhoneNumber.
         },
-      });
-    }
+    });
   };
 
   const handleSendOtp = async () => {
@@ -73,6 +74,7 @@ export default function LoginPage() {
     }
     setIsLoading(true);
     setupRecaptcha();
+
     try {
       const beneficiariesRef = collection(firestore, 'beneficiaries');
       const q = query(
@@ -103,9 +105,10 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
-
+      
       const appVerifier = window.recaptchaVerifier!;
-      const fullPhoneNumber = `+${phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber}`;
+      // Format phone number to E.164 standard
+      const fullPhoneNumber = `+${phoneNumber.replace(/[^0-9]/g, '')}`;
 
       const confirmationResult = await signInWithPhoneNumber(
         auth,
@@ -114,14 +117,16 @@ export default function LoginPage() {
       );
       window.confirmationResult = confirmationResult;
       setIsOtpSent(true);
-      toast({ title: 'OTP Sent', description: 'OTP sent to your mobile.' });
+      toast({ title: 'OTP Sent', description: `An OTP has been sent to the mobile number linked with Smart Card ${smartCardNumber}.` });
     } catch (error: any) {
       console.error('Error sending OTP:', error);
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
         description:
-          error.message || 'Could not send OTP. Please try again later.',
+          error.code === 'auth/invalid-phone-number' 
+            ? 'The phone number associated with this card is invalid.'
+            : (error.message || 'Could not send OTP. Please try again later.'),
       });
     } finally {
       setIsLoading(false);
@@ -150,8 +155,8 @@ export default function LoginPage() {
       console.error('Error verifying OTP:', error);
       toast({
         variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: error.message || 'Could not verify OTP.',
+        title: 'Login Failed',
+        description: error.code === 'auth/invalid-verification-code' ? 'The OTP you entered is incorrect. Please try again.' : (error.message || 'Could not verify OTP.'),
       });
     } finally {
       setIsLoading(false);
@@ -194,7 +199,6 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!isScannerOpen ? (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -218,14 +222,22 @@ export default function LoginPage() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    onClick={() => setScannerOpen(true)}
-                    disabled={isOtpSent || isLoading}
-                    aria-label="Scan QR Code"
+                    onClick={() => setScannerOpen(!isScannerOpen)}
+                    disabled={isLoading}
+                    aria-label={isScannerOpen ? "Close Scanner" : "Scan QR Code"}
                   >
-                    <QrCode className="h-5 w-5" />
+                    {isScannerOpen ? <X className="h-5 w-5" /> : <QrCode className="h-5 w-5" />}
                   </Button>
                 </div>
               </div>
+
+              {isScannerOpen && (
+                 <QrScanner
+                    onScanSuccess={handleQrScanSuccess}
+                    onClose={() => setScannerOpen(false)}
+                  />
+              )}
+
               {isOtpSent && (
                 <div className="space-y-2">
                   <Label htmlFor="otp">Enter 6-digit OTP</Label>
@@ -252,15 +264,7 @@ export default function LoginPage() {
                   : 'Send OTP'}
               </Button>
             </form>
-          ) : (
-            <div>
-              <QrScanner
-                onScanSuccess={handleQrScanSuccess}
-                onClose={() => setScannerOpen(false)}
-              />
-            </div>
-          )}
-          <div id="recaptcha-container"></div>
+          <div id="recaptcha-container" className="mt-4"></div>
         </CardContent>
       </Card>
     </div>
