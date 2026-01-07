@@ -13,18 +13,22 @@ interface QrScannerProps {
 
 const QrScanner: React.FC<QrScannerProps> = ({ onScanSuccess, onClose }) => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
 
   const startScanner = async () => {
     if (scannerRef.current && scannerRef.current.isScanning) {
-        await scannerRef.current.stop();
+      await scannerRef.current.stop();
     }
-    
+
     const newScanner = new Html5Qrcode('qr-reader-container');
     scannerRef.current = newScanner;
 
     try {
+      const cameras = await Html5Qrcode.getCameras();
+      if (!cameras || cameras.length === 0) {
+        throw new Error('No cameras found.');
+      }
+
       await newScanner.start(
         { facingMode: 'environment' },
         {
@@ -34,18 +38,19 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScanSuccess, onClose }) => {
         (decodedText) => {
           onScanSuccess(decodedText);
           if (scannerRef.current?.isScanning) {
-             scannerRef.current.stop();
+            scannerRef.current.stop();
           }
         },
         (errorMessage) => {
           // handle scan failure, usually better to ignore.
         }
       );
-    } catch (err) {
+    } catch (err: any) {
+      const errorMessage = err.message || 'Could not start the camera. Please check permissions.';
       toast({
         variant: 'destructive',
         title: 'QR Scanner Error',
-        description: 'Could not start the camera. Please check permissions.',
+        description: errorMessage,
       });
       console.error('QR Scanner Error:', err);
       onClose();
@@ -60,16 +65,16 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScanSuccess, onClose }) => {
         scannerRef.current.stop().catch(console.error);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="relative">
       <div id="qr-reader-container" className="w-full rounded-md overflow-hidden border"></div>
-       <div className="absolute top-2 right-2 flex gap-2">
-         <Button variant="destructive" size="icon" onClick={onClose} aria-label="Close scanner">
-           <X className="h-5 w-5" />
-         </Button>
+      <div className="absolute top-2 right-2 flex gap-2">
+        <Button variant="destructive" size="icon" onClick={onClose} aria-label="Close scanner">
+          <X className="h-5 w-5" />
+        </Button>
       </div>
     </div>
   );
