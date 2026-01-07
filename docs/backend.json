@@ -1,124 +1,174 @@
-
 {
   "entities": {
-    "UserAccount": {
+    "Beneficiary": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UserAccount",
+      "title": "Beneficiary",
       "type": "object",
-      "description": "Represents a user account within the TN-PDS portal replica, storing login and account details.",
+      "description": "Represents a beneficiary in the Public Distribution System.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user account."
-        },
-        "username": {
-          "type": "string",
-          "description": "The username chosen by the user during account creation."
+          "description": "Unique identifier for the Beneficiary entity."
         },
         "smartCardNumber": {
           "type": "string",
-          "description": "The Smart Card number associated with the user account."
+          "description": "The unique Smart Card number assigned to the beneficiary."
         },
-        "aadhaarNumber": {
+        "name": {
           "type": "string",
-          "description": "The masked Aadhaar number associated with the user account."
+          "description": "Name of the beneficiary."
         },
-        "createdAt": {
+        "address": {
           "type": "string",
-          "description": "Timestamp indicating when the user account was created.",
-          "format": "date-time"
+          "description": "Address of the beneficiary."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Phone number registered with the smart card."
+        },
+        "familyCardId": {
+          "type": "string",
+          "description": "Reference to FamilyCard. (Relationship: FamilyCard 1:N Beneficiary)"
         }
       },
       "required": [
         "id",
-        "username",
         "smartCardNumber",
-        "aadhaarNumber",
-        "createdAt"
+        "name",
+        "address",
+        "phoneNumber",
+        "familyCardId"
       ]
     },
-    "LoginAttempt": {
+    "FamilyCard": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "LoginAttempt",
+      "title": "FamilyCard",
       "type": "object",
-      "description": "Stores data related to a user's login attempt, including success status and timestamp.",
+      "description": "Represents a family card in the Public Distribution System.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the login attempt."
+          "description": "Unique identifier for the FamilyCard entity."
         },
-        "userAccountId": {
+        "cardNumber": {
           "type": "string",
-          "description": "Reference to UserAccount. (Relationship: UserAccount 1:N LoginAttempt)"
+          "description": "The unique card number assigned to the family."
         },
-        "timestamp": {
+        "headOfFamily": {
           "type": "string",
-          "description": "Timestamp of the login attempt.",
-          "format": "date-time"
+          "description": "Name of the head of the family."
         },
-        "successful": {
-          "type": "boolean",
-          "description": "Indicates whether the login attempt was successful."
+        "address": {
+          "type": "string",
+          "description": "Address of the family."
         },
-        "otpSent": {
-          "type": "boolean",
-          "description": "Indicates whether OTP was sent during this login attempt."
+        "cardType": {
+          "type": "string",
+          "description": "Type of the family card (e.g., AAY, PHH)."
         }
       },
       "required": [
         "id",
-        "userAccountId",
-        "timestamp",
-        "successful",
-        "otpSent"
+        "cardNumber",
+        "headOfFamily",
+        "address",
+        "cardType"
+      ]
+    },
+    "Grievance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Grievance",
+      "type": "object",
+      "description": "Represents a grievance submitted by a beneficiary.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Grievance entity."
+        },
+        "beneficiaryId": {
+          "type": "string",
+          "description": "Reference to Beneficiary. (Relationship: Beneficiary 1:N Grievance)"
+        },
+        "submissionDate": {
+          "type": "string",
+          "description": "Date when the grievance was submitted.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the grievance."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the grievance (e.g., Open, In Progress, Resolved)."
+        }
+      },
+      "required": [
+        "id",
+        "beneficiaryId",
+        "submissionDate",
+        "description",
+        "status"
       ]
     }
   },
   "auth": {
     "providers": [
-      "phone",
+      "password",
       "anonymous"
     ]
   },
   "firestore": {
     "structure": [
       {
-        "path": "/users/{userId}",
+        "path": "/beneficiaries/{beneficiaryId}",
         "definition": {
-          "entityName": "UserAccount",
+          "entityName": "Beneficiary",
           "schema": {
-            "$ref": "#/backend/entities/UserAccount"
+            "$ref": "#/backend/entities/Beneficiary"
           },
-          "description": "Stores user account information. Path-based ownership: only the user can access their data.",
+          "description": "Stores beneficiary data, indexed by document id. The document id is also stored in the id property.",
           "params": [
             {
-              "name": "userId",
-              "description": "The unique identifier of the user, corresponding to the Firebase Auth UID."
+              "name": "beneficiaryId",
+              "description": "The unique identifier of the beneficiary document. This is also stored in the `id` property."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/login_attempts/{loginAttemptId}",
+        "path": "/familyCards/{familyCardId}",
         "definition": {
-          "entityName": "LoginAttempt",
+          "entityName": "FamilyCard",
           "schema": {
-            "$ref": "#/backend/entities/LoginAttempt"
+            "$ref": "#/backend/entities/FamilyCard"
           },
-          "description": "Stores login attempts for a specific user. This subcollection enables path-based ownership, restricting access to the user and securing list operations.",
+          "description": "Stores data about the family cards, indexed by familyCardId.",
           "params": [
             {
-              "name": "userId",
-              "description": "The unique identifier of the user, corresponding to the Firebase Auth UID."
-            },
+              "name": "familyCardId",
+              "description": "The unique identifier of the family card document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/grievances/{grievanceId}",
+        "definition": {
+          "entityName": "Grievance",
+          "schema": {
+            "$ref": "#/backend/entities/Grievance"
+          },
+          "description": "Stores grievances submitted by beneficiaries. Each document includes the beneficiaryId.",
+          "params": [
             {
-              "name": "loginAttemptId",
-              "description": "The unique identifier for the login attempt."
+              "name": "grievanceId",
+              "description": "The unique identifier of the grievance document."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to securely manage user accounts and login attempts for the TN-PDS portal replica. It prioritizes authorization independence and simplifies security rules by avoiding hierarchical authorization dependencies.\n\n*   **/users/{userId}**: This collection stores user account details. The path-based ownership (`/users/{userId}`) ensures that only the user has access to their account data. The `userId` from `request.auth.uid` is used to enforce this ownership.\n*   **/users/{userId}/login_attempts/{loginAttemptId}**: This subcollection stores login attempts for each user. The subcollection is located under the user's document to leverage path-based security. Because of the path `/users/{userId}` we implicitly knows the owner. This structure facilitates secure listing of login attempts, satisfying the QAPs (Rules are not Filters) requirement. The `userAccountId` field within each `LoginAttempt` document is redundant and should be equivalent to the wildcard `{userId}`. While redundant, explicitly including `userAccountId` can aid in debugging and reporting.\n\nThis structure adheres to the core design principles:\n\n1.  **Authorization Independence:** Security rules rely on the `request.auth.uid` and the document path, avoiding `get()` calls to parent documents. The user ID is implicitly available from the path itself.\n2.  **Clarity of Intent:** The structure clearly reflects the ownership and relationship between users and their login attempts.\n3.  **DBAC:** Authorization is based solely on `request.auth.uid` and the document paths. No custom claims are used.\n4.  **QAPs:** The structure supports secure `list` operations. For example, listing login attempts for a user is done via the `/users/{userId}/login_attempts` collection, where the security rules can easily verify the user's ownership.\n5.  **Invariants:** Path-based ownership (`/users/{userId}`) ensures the integrity of user data and prevents unauthorized access.\n\nThe design also implements the following strategies:\n\nA.  **Authorization Independence via Denormalization:** While not explicitly denormalized, this structure intrinsically implements this strategy through Path-Based Ownership. The ownership is expressed via the path itself: `/users/{userId}`. This implicitly provides the authorization context without requiring field denormalization.\n\nB.  **Structural Segregation:** User accounts and login attempts are stored in separate collections/subcollections, each with its specific security requirements. Private user data is stored under `/users/{userId}`, and login attempts are further nested under each user.\n\nC.  **Access Modeling:** The design follows the principles of access modeling:\n\n    *   Private data: Uses path-based ownership (`/users/{userId}`) for user accounts.\n    *   Hierarchical paths: Uses hierarchical paths (`/users/{userId}/login_attempts`) to represent the one-to-many relationship between users and their login attempts.\n\nD.  **Data Clarity and Predictability:** The structure uses explicit naming conventions and avoids dynamic keys. The timestamps are named consistently (`createdAt`, `timestamp`)."
+    "reasoning": "The Firestore structure is designed to support a secure smart card-based login for the Citizen Public Distribution System (PDS) web application. The core principle is Authorization Independence, achieved by avoiding `get()` calls in security rules. This is realized through structural segregation and by storing all authorization-relevant data directly within the documents that need protection. The structure facilitates straightforward security rules, enabling simple `list` operations and maintaining the integrity of ownership and timestamps.\n\nThe `beneficiaries` collection stores the core user data, indexed by `smartCardNumber` for efficient login validation. The `familyCards` collection stores data about the family cards. The `grievances` collection stores grievances submitted by the beneficiaries.\n\nThis structure is designed to ensure that:\n\n1.  **Authorization Independence:** Security rules can be written based solely on the content of the request and the document being accessed, without needing to fetch data from parent documents.\n2.  **Clarity of Intent:** The structure clearly indicates the authorization requirements for each collection.\n3.  **No Custom Claims (DBAC):** Roles and permissions are managed within the database itself.\n4.  **Rules are not Filters (QAPs):** Security rules can efficiently filter data during `list` operations without requiring complex queries or client-side filtering.\n5.  **Invariants:** The structure supports maintaining the integrity of ownership, timestamps, and denormalized data."
   }
 }
