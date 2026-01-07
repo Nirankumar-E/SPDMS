@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
+import { useEffect, useRef, useState } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
-import { X, RefreshCw } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface QrScannerProps {
   onScanSuccess: (decodedText: string) => void;
@@ -14,68 +15,81 @@ interface QrScannerProps {
 const QrScanner: React.FC<QrScannerProps> = ({ onScanSuccess, onClose }) => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const { toast } = useToast();
-
-  const startScanner = async () => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      await scannerRef.current.stop();
-    }
-
-    const newScanner = new Html5Qrcode('qr-reader-container');
-    scannerRef.current = newScanner;
-
-    try {
-      const cameras = await Html5Qrcode.getCameras();
-      if (!cameras || cameras.length === 0) {
-        throw new Error('No cameras found.');
-      }
-
-      await newScanner.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
-        (decodedText) => {
-          onScanSuccess(decodedText);
-          if (scannerRef.current?.isScanning) {
-            scannerRef.current.stop();
-          }
-        },
-        (errorMessage) => {
-          // handle scan failure, usually better to ignore.
-        }
-      );
-    } catch (err: any) {
-      const errorMessage = err.message || 'Could not start the camera. Please check permissions.';
-      toast({
-        variant: 'destructive',
-        title: 'QR Scanner Error',
-        description: errorMessage,
-      });
-      console.error('QR Scanner Error:', err);
-      onClose();
-    }
-  };
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
   useEffect(() => {
-    startScanner();
+    // Component mounts, create a new scanner instance.
+    scannerRef.current = new Html5Qrcode('qr-reader-container');
+    const html5QrCode = scannerRef.current;
 
-    return () => {
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(console.error);
+    const start = async () => {
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras || cameras.length === 0) {
+           setHasPermission(false);
+           console.error('No cameras found on this device.');
+           toast({
+            variant: 'destructive',
+            title: 'Camera Error',
+            description: 'No camera was found on this device.',
+           });
+           return;
+        }
+        setHasPermission(true);
+
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+          },
+          (decodedText) => {
+            // successful scan
+            onScanSuccess(decodedText);
+          },
+          (errorMessage) => {
+            // parse error, ignore.
+          }
+        );
+      } catch (err: any) {
+         setHasPermission(false);
+         console.error('QR Scanner Error:', err);
+         toast({
+           variant: 'destructive',
+           title: 'Camera Permission Denied',
+           description: 'Please allow camera access in your browser settings to scan the QR code.',
+         });
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    start();
+
+    return () => {
+      // Component unmounts, stop the scanner.
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(error => {
+          console.error('Failed to stop QR code scanner.', error);
+        });
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="relative">
+    <div className="relative space-y-4">
       <div id="qr-reader-container" className="w-full rounded-md overflow-hidden border"></div>
-      <div className="absolute top-2 right-2 flex gap-2">
-        <Button variant="destructive" size="icon" onClick={onClose} aria-label="Close scanner">
-          <X className="h-5 w-5" />
-        </Button>
-      </div>
+       {hasPermission === false && (
+         <Alert variant="destructive">
+           <AlertTitle>Camera Access Denied</AlertTitle>
+           <AlertDescription>
+             Could not access the camera. Please ensure you have a camera connected and have granted permission in your browser.
+           </AlertDescription>
+         </Alert>
+       )}
+      <Button variant="outline" onClick={onClose} className="w-full">
+        <X className="mr-2 h-4 w-4" />
+        Cancel Scan
+      </Button>
     </div>
   );
 };
