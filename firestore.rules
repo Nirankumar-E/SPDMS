@@ -1,119 +1,148 @@
 /**
- * This ruleset enforces a strict user-ownership model for the TN-PDS portal replica.
- * A user's authentication UID is expected to match the {beneficiaryId} in the path,
- * giving them exclusive control over their personal data and submitted grievances.
+ * @file firestore.rules
+ * @description Security rules for a citizen services portal application.
  *
- * Core Philosophy:
- * The security model is centered on the 'Beneficiary'. Users can only access data
- * within their own document tree (/beneficiaries/{userId}/...). This ensures strong
- * data privacy and prevents users from accessing or even knowing about other users.
+ * @philosophy
+ * This ruleset enforces a strict user-ownership model. All user-related data,
+ * including account information and login history, is private and can only be
+ * accessed by the authenticated owner of that data. The security model defaults
+ * to denying all access, granting permissions explicitly and granularly.
  *
- * Data Structure:
- * - /beneficiaries/{beneficiaryId}: The root document for a user's private data.
- * - /beneficiaries/{beneficiaryId}/grievances/{grievanceId}: A subcollection for
- *   grievances, inheriting access control from its parent beneficiary document.
- * - /family_cards/{familyCardNumber}: A top-level collection for reference data.
- *   This data is considered read-only for all authenticated users.
+ * @structure
+ * Data is organized under a top-level `/users` collection. Each user's data
+ * is stored in a document where the document ID matches the user's Firebase
+ * Authentication UID (`/users/{userId}`). All related private data, such as
+ * login attempts, is stored in subcollections under that user's document.
+ * This structure leverages path-based security, which is highly performant
+ * and easy to reason about.
  *
- * Key Security Decisions:
- * - User Isolation: Listing all beneficiaries is explicitly disallowed to protect
- *   user privacy and prevent data scraping.
- * - Read-Only Reference Data: The `/family_cards` collection is readable by any
- *   signed-in user but cannot be modified by clients. This assumes the data is
- *   populated and managed by a trusted backend process or administrator.
- * - Ownership Enforcement: All write operations within a user's data tree
- *   are strictly limited to the authenticated owner of that tree.
- * - Denormalization for Authorization: The `grievance` documents must contain a
- *   `beneficiaryId` field that matches the parent document's ID. This is validated
- *   on creation to ensure relational integrity without needing extra database reads.
+ * @decisions
+ * - **Strictly Private Data**: There is no public or shared data in this model.
+ *   All read and write operations require an authenticated user.
+ * - **User Isolation**: Users are strictly isolated. They cannot read, list,
+ *   or modify any data outside of their own document tree (`/users/{their_own_uid}`).
+ * - **No User Listing**: Listing the top-level `/users` collection is explicitly
+ *   disallowed to prevent leaking user information.
+ * - **Relational Integrity**: While data shapes are flexible (Prototyping Mode),
+ *   rules enforce that a document's internal owner ID fields must match the
+ *   UID in its path upon creation, and that these IDs are immutable.
  *
- * Structural Segregation:
- * Private user data (/beneficiaries) is structurally separate from semi-public
- * reference data (/family_cards). This separation simplifies rules and improves
- * query performance and security, as rules for one collection do not affect the other.
+ * @denormalization
+ * This model uses path-based ownership, a form of structural denormalization.
+ * The user's UID is part of the document path (e.g., `/users/{userId}`),
+ * which makes the ownership context available for every rule without needing
+ * to read another document. This avoids slow and costly `get()` calls in rules.
+ * For example, a rule on `/users/{userId}/login_attempts/{attemptId}` can
+ * authorize access simply by checking the `{userId}` wildcard from the path.
+ *
+ * @segregation
+ * This model segregates each user's data into its own document tree. This is
+ * the most secure pattern for private user data, as it makes it impossible
+ * for queries or rules to accidentally cross user boundaries.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for reusable logic
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Checks if a user is authenticated.
+     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Checks if the requesting user's UID matches the document's owner ID.
+    /**
+     * @description Checks if the requesting user's UID matches the provided userId.
+     * This is the foundation of the user-ownership model.
+     * @param userId The UID to check against the authenticated user.
+     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
-    // Checks for ownership on existing documents for update/delete operations.
+
+    /**
+     * @description Checks for ownership on an existing document.
+     * CRITICAL: Protects all update and delete operations from acting on
+     * non-existent documents, which is a security best practice.
+     * @param userId The UID of the document owner.
+     */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
-    
-    // Validates that the beneficiary ID in the path matches the ID in the new document.
-    function newBeneficiaryDataIsValid(beneficiaryId) {
-      return request.resource.data.id == beneficiaryId;
+
+    /**
+     * @description On create, validates that the user document's internal `id`
+     * field matches the document's path ID (the user's auth UID).
+     * @param userId The UID from the document path.
+     */
+    function hasValidUserAccountDataOnCreate(userId) {
+      return request.resource.data.id == userId;
     }
-    
-    // Enforces the immutability of the beneficiary ID field on update.
-    function existingBeneficiaryDataIsValid() {
+
+    /**
+     * @description On update, ensures the `id` field within a user document
+     * cannot be changed, preserving the link between the document and its owner.
+     */
+    function isUserAccountDataImmutable() {
       return request.resource.data.id == resource.data.id;
     }
 
-    // Validates that a new grievance is being created for the correct beneficiary.
-    function newGrievanceDataIsValid(beneficiaryId) {
-      return request.resource.data.beneficiaryId == beneficiaryId;
-    }
-    
-    // Enforces the immutability of the beneficiaryId field within a grievance on update.
-    function existingGrievanceDataIsValid() {
-      return request.resource.data.beneficiaryId == resource.data.beneficiaryId;
-    }
-    
     /**
-     * @description Controls access to a beneficiary's primary document.
-     * @path /beneficiaries/{beneficiaryId}
-     * @allow (create) An authenticated user creating their own beneficiary document for the first time.
-     * @deny (get) An authenticated user attempting to read another user's beneficiary document.
-     * @principle Restricts access to a user's own data tree and validates relational integrity.
+     * @description On create, validates that a login attempt's internal
+     * `userAccountId` field matches the parent user's document ID.
+     * @param userId The UID from the document path.
      */
-    match /beneficiaries/{beneficiaryId} {
-      allow get: if isOwner(beneficiaryId);
-      allow list: if false;
-      allow create: if isOwner(beneficiaryId) && newBeneficiaryDataIsValid(beneficiaryId);
-      allow update: if isExistingOwner(beneficiaryId) && existingBeneficiaryDataIsValid();
-      allow delete: if isExistingOwner(beneficiaryId);
+    function hasValidLoginAttemptDataOnCreate(userId) {
+      return request.resource.data.userAccountId == userId;
+    }
+
+    /**
+     * @description On update, ensures the `userAccountId` field within a
+     * login attempt cannot be changed, preserving its relationship to the parent user.
+     */
+    function isLoginAttemptDataImmutable() {
+      return request.resource.data.userAccountId == resource.data.userAccountId;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Rules
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Manages user account documents. A user can create their own
+     * account document and has full control over it thereafter. No one else
+     * can read or write to it.
+     * @path /users/{userId}
+     * @allow A logged-in user (auth.uid='user123') can (create) their own document at /users/user123.
+     * @deny A logged-in user (auth.uid='user123') cannot (get) another user's document at /users/user456.
+     * @principle Restricts access to a user's own data tree and enforces self-creation.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // CRITICAL: Prevents listing all users in the application.
+      allow create: if isOwner(userId) && hasValidUserAccountDataOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isUserAccountDataImmutable();
+      allow delete: if isExistingOwner(userId);
 
       /**
-       * @description Controls access to grievances submitted by a specific beneficiary.
-       * @path /beneficiaries/{beneficiaryId}/grievances/{grievanceId}
-       * @allow (create) An authenticated user creating a new grievance under their own beneficiary profile.
-       * @deny (list) An authenticated user attempting to list grievances for another beneficiary.
-       * @principle Enforces document ownership via the parent path and validates relational integrity.
+       * @description Manages a user's login attempt history. Only the user
+       * can create new login attempt records and view their own history.
+       * @path /users/{userId}/login_attempts/{loginAttemptId}
+       * @allow A user (auth.uid='user123') can (create) a new document in the /users/user123/login_attempts subcollection.
+       * @deny An anonymous user cannot (list) documents in /users/user123/login_attempts.
+       * @principle Enforces document ownership for a private subcollection.
        */
-      match /grievances/{grievanceId} {
-        allow get: if isOwner(beneficiaryId);
-        allow list: if isOwner(beneficiaryId);
-        allow create: if isOwner(beneficiaryId) && newGrievanceDataIsValid(beneficiaryId);
-        allow update: if isExistingOwner(beneficiaryId) && existingGrievanceDataIsValid();
-        allow delete: if isExistingOwner(beneficiaryId);
+      match /login_attempts/{loginAttemptId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && hasValidLoginAttemptDataOnCreate(userId);
+        allow update: if isExistingOwner(userId) && isLoginAttemptDataImmutable();
+        allow delete: if isExistingOwner(userId);
       }
-    }
-
-    /**
-     * @description Controls access to the collection of family card reference data.
-     * @path /family_cards/{familyCardNumber}
-     * @allow (get) Any signed-in user reading a specific family card document.
-     * @deny (create) Any user attempting to create a new family card document from the client.
-     * @principle Treats this collection as read-only reference data for clients.
-     */
-    match /family_cards/{familyCardNumber} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
     }
   }
 }
