@@ -64,11 +64,11 @@ export default function LoginPage() {
   };
 
   const handleSendOtp = async () => {
-    if (!smartCardNumber) {
+    if (!smartCardNumber || smartCardNumber.length !== 12) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Please enter your Smart Card Number.',
+        description: 'Please enter your 12-digit Smart Card Number.',
       });
       return;
     }
@@ -164,7 +164,9 @@ export default function LoginPage() {
   };
 
   const handleQrScanSuccess = (decodedText: string) => {
-    setSmartCardNumber(decodedText);
+    // Assuming the QR code contains just the number. Add more parsing if needed.
+    const numericText = decodedText.replace(/[^0-9]/g, '').slice(0, 12);
+    setSmartCardNumber(numericText);
     setScannerOpen(false);
     toast({
       title: 'Success',
@@ -212,11 +214,18 @@ export default function LoginPage() {
                   <Input
                     id="smartCardNumber"
                     type="text"
-                    placeholder="Enter Smart Card Number"
+                    placeholder="Enter 12-digit Smart Card Number"
                     value={smartCardNumber}
-                    onChange={(e) => setSmartCardNumber(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Allow only numbers and limit to 12 digits
+                      if (/^\d*$/.test(value) && value.length <= 12) {
+                        setSmartCardNumber(value);
+                      }
+                    }}
                     disabled={isOtpSent || isLoading}
                     required
+                    maxLength={12}
                   />
                   <Button
                     type="button"
@@ -247,7 +256,7 @@ export default function LoginPage() {
                     maxLength={6}
                     placeholder="******"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
                     required
                   />
                 </div>
