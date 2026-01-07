@@ -4,24 +4,10 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import GovernmentEmblem from '@/components/icons/government-emblem';
 import Link from 'next/link';
-import { User, LogIn, LogOut } from 'lucide-react';
-import { useAuth } from '@/firebase/provider';
-import { signOut } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
-import { useUser } from '@/firebase';
+import { LogIn } from 'lucide-react';
 
 const Header = () => {
   const [language, setLanguage] = useState<'TA' | 'EN'>('TA');
-  const { user, loading } = useUser();
-  const auth = useAuth();
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    if (auth) {
-      await signOut(auth);
-      router.push('/login');
-    }
-  };
 
   return (
     <header className="bg-white shadow-md">
@@ -39,26 +25,11 @@ const Header = () => {
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('EN')}>English</Button>
             </div>
              <div className="flex items-center gap-2">
-              {!loading && (
-                user ? (
-                  <>
-                    <Link href="/dashboard">
-                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
-                        <User /> My Profile
-                      </Button>
-                    </Link>
-                    <Button variant="ghost" size="sm" onClick={handleLogout} className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
-                      <LogOut /> Logout
-                    </Button>
-                  </>
-                ) : (
-                  <Link href="/login">
+                <Link href="/signup">
                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
                       <LogIn /> Citizen Login
                     </Button>
-                  </Link>
-                )
-              )}
+                </Link>
             </div>
           </div>
         </div>
