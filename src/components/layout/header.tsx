@@ -4,10 +4,22 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import GovernmentEmblem from '@/components/icons/government-emblem';
 import Link from 'next/link';
-import { LogIn } from 'lucide-react';
+import { LogIn, User, LogOut } from 'lucide-react';
+import { useUser, useAuth } from '@/firebase/auth/use-user';
+import { useRouter } from 'next/navigation';
 
 const Header = () => {
   const [language, setLanguage] = useState<'TA' | 'EN'>('TA');
+  const { user, loading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    if(auth) {
+      await auth.signOut();
+      router.push('/login');
+    }
+  };
 
   return (
     <header className="bg-white shadow-md">
@@ -24,6 +36,28 @@ const Header = () => {
                 <span className="text-sm">|</span>
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('EN')}>English</Button>
             </div>
+             <div className="border-l border-primary-foreground/50 h-6"></div>
+             {loading ? (
+              <div className="h-7 w-24 bg-primary/80 rounded-md animate-pulse" />
+            ) : user ? (
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1" asChild>
+                  <Link href="/dashboard">
+                    <User className="h-4 w-4" /> My Profile
+                  </Link>
+                </Button>
+                <span className="text-sm">|</span>
+                <Button variant="ghost" size="sm" onClick={handleLogout} className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
+                  <LogOut className="h-4 w-4" /> Logout
+                </Button>
+              </div>
+            ) : (
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1" asChild>
+                <Link href="/login">
+                  <LogIn className="h-4 w-4" /> Citizen Login
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>

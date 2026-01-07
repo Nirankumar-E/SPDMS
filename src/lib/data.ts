@@ -1,7 +1,7 @@
 import { FileText, Users, Building, FileSearch, ShoppingCart, Microscope, User, FilePlus, Milestone, HelpCircle, UserPlus, MapPin, Repeat, Home, LogIn } from 'lucide-react';
 
 export const leftSidebarServices = [
-  { name: ' குடிமக்கள் உள்நுழைவு', icon: LogIn, color: 'bg-green-600', href: '#' },
+  { name: ' குடிமக்கள் உள்நுழைவு', icon: LogIn, color: 'bg-green-600', href: '/login' },
   { name: 'பயனாளி சேவைகள்', icon: User, color: 'bg-green-600', href: '#' },
   { name: 'குடும்ப அட்டை சேவைகள்', icon: Users, color: 'bg-orange-500', href: '#' },
   { name: 'NFSA சேவைகள்', icon: FileText, color: 'bg-blue-500', href: '#' },
