@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import GovernmentEmblem from '@/components/icons/government-emblem';
 import Link from 'next/link';
 import { LogIn, User, LogOut } from 'lucide-react';
-import { useUser, useAuth } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 const Header = () => {
