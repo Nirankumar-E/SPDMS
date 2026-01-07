@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserAccount": {
@@ -75,7 +76,7 @@
   },
   "auth": {
     "providers": [
-      "password",
+      "phone",
       "anonymous"
     ]
   },

@@ -17,7 +17,7 @@ import GovernmentEmblem from '@/components/icons/government-emblem';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
-import { QrCode, Fingerprint, KeyRound, UserCheck, Phone } from 'lucide-react';
+import { QrCode, Fingerprint, KeyRound, UserCheck, User as UserIcon, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useAuth, useFirestore } from '@/firebase/provider';
@@ -32,10 +32,10 @@ declare global {
 }
 
 const steps = [
-  { id: 1, title: 'User Details', icon: UserCheck },
+  { id: 1, title: 'User Details', icon: UserIcon },
   { id: 2, title: 'Aadhaar & Mobile Verification', icon: Fingerprint },
   { id: 3, title: 'OTP Verification', icon: KeyRound },
-  { id: 4, title: 'Confirmation', icon: QrCode },
+  { id: 4, title: 'Confirmation', icon: UserCheck },
 ];
 
 export default function SignupPage() {
@@ -46,6 +46,7 @@ export default function SignupPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const auth = useAuth();
@@ -55,45 +56,51 @@ export default function SignupPage() {
 
   useEffect(() => {
     if (!auth) return;
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      'size': 'invisible',
-      'callback': (response: any) => {
-        // reCAPTCHA solved, allow signInWithPhoneNumber.
-      }
-    });
+    if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible',
+            'callback': (response: any) => {
+              // reCAPTCHA solved, allow signInWithPhoneNumber.
+            }
+        });
+    }
   }, [auth]);
 
-  const handleNext = async () => {
+  const handleNextStep = async () => {
+    setIsLoading(true);
     if (step === 1) {
       if (!username || !smartCardNumber) {
         toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill in all details.' });
+        setIsLoading(false);
         return;
       }
        const q = query(collection(firestore, "users"), where("smartCardNumber", "==", smartCardNumber));
        const querySnapshot = await getDocs(q);
        if (!querySnapshot.empty) {
             toast({ variant: "destructive", title: "Account Exists", description: "An account with this Smart Card Number already exists."});
+            setIsLoading(false);
             return;
        }
     }
     if (step === 2) {
       if (aadhaarNumber.length !== 12 || phoneNumber.length !== 10) {
         toast({ variant: 'destructive', title: 'Invalid Details', description: 'Aadhaar must be 12 digits and Phone must be 10 digits.' });
+        setIsLoading(false);
         return;
       }
-      await handleSendOtp();
-      return; // handleSendOtp will advance step
+      await handleSendOtp(); // This will handle loading state and step change
+      return; 
     }
-    if (step === 3) {
-      await handleVerifyOtp();
-      return; // handleVerifyOtp will advance step
-    }
-    if (step < steps.length) {
-      setStep(step + 1);
-    }
+    setStep(step + 1);
+    setIsLoading(false);
   };
   
   const handleSendOtp = async () => {
+    if(!auth || !window.recaptchaVerifier) {
+        toast({ variant: "destructive", title: "Authentication not ready", description: "Please wait a moment and try again."});
+        setIsLoading(false);
+        return;
+    }
     try {
       const appVerifier = window.recaptchaVerifier!;
       const fullPhoneNumber = `+91${phoneNumber}`;
@@ -105,11 +112,14 @@ export default function SignupPage() {
       console.error("Error sending OTP: ", error);
       toast({ variant: 'destructive', title: 'Failed to send OTP', description: error.message });
     }
+    setIsLoading(false);
   };
 
   const handleVerifyOtp = async () => {
+      setIsLoading(true);
       if(otp.length !== 6){
         toast({ variant: "destructive", title: "Invalid OTP", description: "Please enter the 6-digit OTP."});
+        setIsLoading(false);
         return;
       }
       try {
@@ -120,30 +130,36 @@ export default function SignupPage() {
         console.error("Error verifying OTP: ", error);
         toast({ variant: "destructive", title: "OTP Verification Failed", description: error.message });
       }
+      setIsLoading(false);
   };
-
 
   const handleFinish = async () => {
     if (!isConfirmed) {
       toast({ variant: 'destructive', title: 'Confirmation Required', description: 'Please confirm your details.' });
       return;
     }
+    setIsLoading(true);
     try {
+        const userCredential = auth.currentUser;
+        if (!userCredential) {
+            throw new Error("User not authenticated after OTP verification.");
+        }
+
         await addDoc(collection(firestore, 'users'), {
+            uid: userCredential.uid,
             username,
             smartCardNumber,
             aadhaarNumber: `********${aadhaarNumber.slice(-4)}`,
             phoneNumber,
             createdAt: serverTimestamp(),
-            verificationStatus: 'verified',
-            lastLogin: serverTimestamp(),
         });
-        toast({ title: 'Account Created', description: 'You will be redirected to the main page.' });
-        router.push('/');
+        toast({ title: 'Account Created', description: 'You will be redirected to the dashboard.' });
+        router.push('/dashboard');
     } catch(error: any) {
         console.error("Error creating user: ", error);
         toast({ variant: "destructive", title: "Signup Failed", description: error.message });
     }
+    setIsLoading(false);
   };
 
   const CurrentStepIcon = steps[step - 1].icon;
@@ -198,7 +214,7 @@ export default function SignupPage() {
                     <span className="p-2 bg-gray-200 rounded-l-md">+91</span>
                     <Input id="phone" type="tel" placeholder="Enter 10-digit mobile number" maxLength={10} value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="rounded-l-none" />
                 </div>
-                <p className="text-xs text-gray-500">OTP will be sent to this mobile number.</p>
+                <p className="text-xs text-gray-500">OTP will be sent to this mobile number for verification.</p>
               </div>
             </div>
           )}
@@ -235,18 +251,15 @@ export default function SignupPage() {
 
         </CardContent>
         <CardFooter className="flex justify-between">
-          {step > 1 && <Button variant="outline" onClick={() => setStep(step - 1)}>Back</Button>}
-          
-          {step === 1 && <Button onClick={handleNext}>Next</Button>}
-          {step === 2 && <Button onClick={handleSendOtp}>Send OTP</Button>}
-          {step === 3 && <Button onClick={handleVerifyOtp}>Verify OTP</Button>}
-
-          {step === 4 && <Button onClick={handleFinish} disabled={!isConfirmed}>Finish Sign Up</Button>}
+            {step > 1 && <Button variant="outline" onClick={() => setStep(step - 1)} disabled={isLoading}>Back</Button>}
+            {step < 4 && <Button onClick={handleNextStep} disabled={isLoading}>{isLoading ? 'Processing...' : step === 2 ? 'Send OTP' : 'Next'}</Button>}
+            {step === 3 && <Button onClick={handleVerifyOtp} disabled={isLoading}>{isLoading ? 'Verifying...' : 'Verify OTP'}</Button>}
+            {step === 4 && <Button onClick={handleFinish} disabled={!isConfirmed || isLoading}>{isLoading ? 'Finishing...' : 'Finish Sign Up'}</Button>}
         </CardFooter>
       </Card>
       <p className="mt-4 text-sm text-center text-gray-600">
         Already have an account?{' '}
-        <Link href="/login" className="font-semibold text-blue-600 hover:underline">
+        <Link href="/login" className="font-semibold text-primary hover:underline">
           Login here
         </Link>
       </p>
