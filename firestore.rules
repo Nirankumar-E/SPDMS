@@ -9,7 +9,7 @@
  * - /grievances/{grievanceId}: Stores user-submitted grievances, with each document containing a 'beneficiaryId' to enforce ownership.
  *
  * Key Security Decisions:
- * - User Privacy: Listing all beneficiaries or all grievances is explicitly disallowed to prevent data scraping and protect user privacy.
+ * - User Privacy: Listing all beneficiaries or all grievances is explicitly disallowed to prevent data scraping and protect user privacy, with a specific exception for the login flow.
  * - Read-Only Reference Data: The `/familyCards` collection is treated as system-managed data. Clients can read it for display purposes but cannot modify it, ensuring data integrity.
  * - Ownership Enforcement: All write operations on beneficiary-owned data (profiles, grievances) are strictly validated to ensure the acting user is the owner.
  *
@@ -91,22 +91,24 @@ service cloud.firestore {
       return request.resource.data.beneficiaryId == resource.data.beneficiaryId;
     }
 
-
     // ------------------------------------------------------------------------
     // Collection Rules
     // ------------------------------------------------------------------------
 
     /**
      * @description Manages beneficiary profiles. Only the beneficiary can read or modify their own profile.
+     * A special list rule allows unauthenticated users to query for a smart card number for the login flow.
      * @path /beneficiaries/{beneficiaryId}
      * @allow (create) An authenticated user creating their own profile document where the doc ID matches their UID. auth.uid: "user123", path: "/beneficiaries/user123".
+     * @allow (list) An unauthenticated user querying for a smart card number.
      * @deny (get) A user trying to read another user's profile. auth.uid: "user123", path: "/beneficiaries/user456".
-     * @deny (list) Any user trying to list all beneficiaries in the system.
-     * @principle Restricts access to a user's own data tree and prevents enumeration of all users.
+     * @deny (list) An authenticated user trying to list all beneficiaries in the system.
+     * @principle Restricts access to a user's own data tree and prevents enumeration of all users, except for login.
      */
     match /beneficiaries/{beneficiaryId} {
       allow get: if isOwner(beneficiaryId);
-      allow list: if false;
+      // Allow unauthenticated users to query by smartCardNumber for login purposes ONLY.
+      allow list: if !isSignedIn() && request.query.keys().hasOnly(['smartCardNumber']);
       allow create: if isCreatingOwnBeneficiaryProfile(beneficiaryId);
       allow update: if isOwner(beneficiaryId) && resource != null && beneficiaryIdIsImmutable();
       allow delete: if isOwner(beneficiaryId) && resource != null;
@@ -115,7 +117,7 @@ service cloud.firestore {
     /**
      * @description Stores public reference data about family cards. This data is read-only for all authenticated users.
      * @path /familyCards/{familyCardId}
-     * @allow (get) Any authenticated user reading a family card document. auth.uid: "user123".
+     * @allow (get, list) Any authenticated user reading family card documents. auth.uid: "user123".
      * @deny (create) Any client attempting to create a new family card document.
      * @principle Protects system reference data from client-side modification.
      */
@@ -138,7 +140,8 @@ service cloud.firestore {
      */
     match /grievances/{grievanceId} {
       allow get: if isExistingDocumentOwner(resource.data.beneficiaryId);
-      allow list: if false;
+      // Allow a user to list only their own grievances.
+      allow list: if isSignedIn() && request.query.keys().hasOnly(['beneficiaryId']) && request.query.beneficiaryId == request.auth.uid;
       allow create: if isCreatingOwnGrievance();
       allow update: if isExistingDocumentOwner(resource.data.beneficiaryId) && grievanceOwnerIsImmutable();
       allow delete: if isExistingDocumentOwner(resource.data.beneficiaryId);
