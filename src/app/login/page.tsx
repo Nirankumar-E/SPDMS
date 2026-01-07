@@ -50,15 +50,17 @@ export default function LoginPage() {
     }
   }, [user, isUserLoading, router]);
 
-  useEffect(() => {
+  const setupRecaptcha = () => {
     if (!auth) return;
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-      callback: () => {
-        // reCAPTCHA solved, allow signInWithPhoneNumber.
-      },
-    });
-  }, [auth]);
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {
+          // reCAPTCHA solved, allow signInWithPhoneNumber.
+        },
+      });
+    }
+  };
 
   const handleSendOtp = async () => {
     if (!smartCardNumber) {
@@ -70,6 +72,7 @@ export default function LoginPage() {
       return;
     }
     setIsLoading(true);
+    setupRecaptcha();
     try {
       const beneficiariesRef = collection(firestore, 'beneficiaries');
       const q = query(
