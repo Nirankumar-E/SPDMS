@@ -20,21 +20,22 @@ service cloud.firestore {
     // ------------------------------------------------------------------------
 
     /**
-     * @description Manages citizen profiles. Only the owner can read or modify their own profile.
-     * A special list rule allows unauthenticated users to query for a smart card number for the login flow.
+     * @description Manages citizen profiles.
      * @path /citizens/{citizenId}
-     * @allow (list) Unauthenticated user querying for a smart card number to initiate login.
-     * @allow (get, update) An authenticated user reading or updating their own profile document.
+     * @allow (read) Unauthenticated user querying for a smart card number to initiate login.
+     * @allow (read) An authenticated user reading their own profile document.
+     * @allow (update) An authenticated user updating their own profile document.
      * @deny (create, delete) Clients are not allowed to create or delete citizen profiles.
      * @deny (list) Authenticated users are not allowed to list all citizens.
      */
     match /citizens/{citizenId} {
-      // Allow unauthenticated users to query by smartCardNumber for login purposes ONLY.
-      // This is secure because it only allows a query on this specific field.
-      allow list: if !isSignedIn() && request.query.keys().hasOnly(['smartCardNumber']);
+      // Combined read rule:
+      // - Allows unauthenticated users to query ONLY by smartCardNumber for login.
+      // - Allows authenticated users to get their own document.
+      allow read: if (!isSignedIn() && request.query.keys().hasOnly(['smartCardNumber'])) || isOwner(citizenId);
 
-      // Allow authenticated users to read and write to their own document.
-      allow get, update: if isOwner(citizenId);
+      // Allow authenticated users to update their own document.
+      allow update: if isOwner(citizenId);
       
       // Disallow client-side creation or deletion of citizen records.
       allow create, delete: if false;
