@@ -5,7 +5,7 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useDashboard } from '../layout';
-import { useFirestore, useAuth } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import {
   Card,
@@ -38,7 +38,6 @@ type BookingFormValues = z.infer<typeof bookingSchema>;
 
 export default function RationSelectionPage() {
   const { citizen } = useDashboard();
-  const { user } = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -48,13 +47,12 @@ export default function RationSelectionPage() {
   });
 
   const onSubmit: SubmitHandler<BookingFormValues> = async (data) => {
-    if (!user || !citizen) return;
+    if (!citizen) return;
 
     try {
-      const bookingRef = doc(firestore, 'bookings', user.uid);
+      // Use the smart card number (which is the citizen.id) as the document ID for the booking
+      const bookingRef = doc(firestore, 'bookings', citizen.id);
       await setDoc(bookingRef, {
-        id: user.uid,
-        smartCardNumber: citizen.smartCardNumber,
         date: format(data.date, 'yyyy-MM-dd'),
         timeSlot: data.timeSlot,
         status: 'Booked',

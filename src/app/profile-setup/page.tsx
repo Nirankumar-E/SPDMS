@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc, collection, query, where } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,6 +20,14 @@ const profileSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
+
+interface CitizenDocument {
+    name: string;
+    profileCompleted: boolean;
+    familyMembers: { id: string; name: string; relation: string; }[];
+    [key: string]: any;
+}
+
 
 export default function ProfileSetupPage() {
   const { user, isUserLoading } = useUser();
@@ -39,13 +47,12 @@ export default function ProfileSetupPage() {
     }
   }, [isUserLoading, user, router]);
 
-  const citizenQuery = useMemoFirebase(() => {
+  const citizenDocRef = useMemoFirebase(() => {
     if (!firestore || !smartCardNumber) return null;
-    return query(collection(firestore, 'citizens'), where('smartCardNumber', '==', smartCardNumber));
+    return doc(firestore, 'citizens', smartCardNumber);
   }, [firestore, smartCardNumber]);
 
-  const { data: citizenData, isLoading: isCitizenLoading } = useCollection(citizenQuery);
-  const citizen = (citizenData && citizenData.length > 0) ? citizenData[0] : null;
+  const { data: citizen, isLoading: isCitizenLoading } = useDoc<CitizenDocument>(citizenDocRef);
 
 
   const form = useForm<ProfileFormValues>({
@@ -72,11 +79,11 @@ export default function ProfileSetupPage() {
 
 
   const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
-    if (!citizen) return;
+    if (!citizen || !smartCardNumber) return;
 
     try {
-      // We need the actual document ID to update it. `citizen.id` holds this.
-      const citizenRef = doc(firestore, 'citizens', citizen.id);
+      // The document ID is the smartCardNumber
+      const citizenRef = doc(firestore, 'citizens', smartCardNumber);
       await updateDoc(citizenRef, {
         name: data.name,
         profileCompleted: true,
@@ -135,7 +142,7 @@ export default function ProfileSetupPage() {
               )}
             </div>
 
-            <p className='text-sm text-muted-foreground'>Smart Card No: {citizen.smartCardNumber}</p>
+            <p className='text-sm text-muted-foreground'>Smart Card No: {smartCardNumber}</p>
 
             <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? 'Saving...' : 'Save and Continue'}

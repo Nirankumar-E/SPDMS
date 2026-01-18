@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   signInAnonymously,
 } from 'firebase/auth';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,7 +37,13 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-      router.push('/dashboard');
+      // If a user session exists, try to get the smart card number from local storage
+      const storedCardNumber = localStorage.getItem('loggedInSmartCardNumber');
+      if(storedCardNumber) {
+        router.push('/dashboard');
+      }
+      // If no card number, they need to log in properly.
+      // The session might be from a previous incomplete login.
     }
   }, [user, isUserLoading, router]);
 
@@ -54,14 +60,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const citizensRef = collection(firestore, 'citizens');
-      const q = query(
-        citizensRef,
-        where('smartCardNumber', '==', smartCardNumber)
-      );
-      const querySnapshot = await getDocs(q);
+      const citizenRef = doc(firestore, 'citizens', smartCardNumber);
+      const docSnap = await getDoc(citizenRef);
 
-      if (querySnapshot.empty) {
+
+      if (!docSnap.exists()) {
         toast({
           variant: 'destructive',
           title: 'Error',
@@ -131,7 +134,7 @@ export default function LoginPage() {
     });
   };
 
-  if (isUserLoading || user) {
+  if (isUserLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         Loading...

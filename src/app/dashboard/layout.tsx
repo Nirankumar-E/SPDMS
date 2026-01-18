@@ -1,14 +1,13 @@
 'use client';
 
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, createContext, useContext, ReactNode, useState } from 'react';
-import { collection, query, where } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 
 // Define the shape of the citizen data based on your Firestore structure
-interface Citizen {
-  id: string;
-  smartCardNumber: string;
+// This interface represents the data *within* a citizen document.
+interface CitizenDocument {
   name: string;
   cardType: string;
   fpsCode: string;
@@ -17,6 +16,11 @@ interface Citizen {
   familyMembers: { id: string; name: string; age: number; gender: string; relation: string }[];
   rationAllocation: { [key: string]: string };
   [key: string]: any; // Allow other properties
+}
+
+// This is the shape of the object we'll pass in context, which includes the document ID.
+interface Citizen extends CitizenDocument {
+    id: string; // The document ID, which is the Smart Card Number
 }
 
 interface DashboardContextType {
@@ -55,15 +59,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
 
   // Create a memoized query to fetch citizen data based on the smart card number
-  const citizenQuery = useMemoFirebase(() => {
+  const citizenDocRef = useMemoFirebase(() => {
     if (!firestore || !smartCardNumber) return null;
-    return query(collection(firestore, 'citizens'), where('smartCardNumber', '==', smartCardNumber));
+    return doc(firestore, 'citizens', smartCardNumber);
   }, [firestore, smartCardNumber]);
 
-  const { data: citizenData, isLoading: isCitizenLoading, error } = useCollection<Citizen>(citizenQuery);
-
-  // Since useCollection returns an array, we get the first (and only) result.
-  const citizen = (citizenData && citizenData.length > 0) ? citizenData[0] : null;
+  const { data: citizen, isLoading: isCitizenLoading, error } = useDoc<CitizenDocument>(citizenDocRef);
 
   useEffect(() => {
     // If auth is done and there's no user, redirect to login
@@ -76,6 +77,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     // If we have a user but fetching their citizen data fails
     if (error) {
         console.error("Error fetching citizen data:", error);
+        // This could be a permission error if rules are strict.
+        // Or the document just doesn't exist.
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not fetch your profile data."
+        })
         router.replace('/login');
         return;
     }

@@ -26,6 +26,7 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     await auth.signOut();
+    localStorage.removeItem('loggedInSmartCardNumber');
     router.push('/login');
   };
 
@@ -59,7 +60,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
-                <div className='flex items-center gap-2'><FileText className='h-4 w-4'/> Smart Card: <span className='font-medium text-foreground'>{citizen.smartCardNumber}</span></div>
+                <div className='flex items-center gap-2'><FileText className='h-4 w-4'/> Smart Card: <span className='font-medium text-foreground'>{citizen.id}</span></div>
                 <div className='flex items-center gap-2'><Badge variant="outline">{citizen.cardType}</Badge></div>
                 <div className='flex items-center gap-2'><MapPin className='h-4 w-4'/> District: <span className='font-medium text-foreground'>{citizen.district}</span></div>
                 <div className='flex items-center gap-2'><HomeIcon className='h-4 w-4'/> FPS Code: <span className='font-medium text-foreground'>{citizen.fpsCode}</span></div>

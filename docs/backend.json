@@ -6,14 +6,6 @@
       "type": "object",
       "description": "Represents a citizen's profile and ration card details in the Public Distribution System.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Citizen, matching the Firebase Auth UID."
-        },
-        "smartCardNumber": {
-          "type": "string",
-          "description": "The unique Smart Card number assigned to the family."
-        },
         "cardType": {
           "type": "string",
           "description": "Type of the family card (e.g., PHH, NPHH)."
@@ -66,8 +58,6 @@
         }
       },
       "required": [
-        "id",
-        "smartCardNumber",
         "registeredMobile",
         "familyMembers",
         "name"
@@ -79,10 +69,6 @@
       "type": "object",
       "description": "Represents a time slot booking for ration collection.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Booking, matching the citizen's UID."
-        },
         "date": {
           "type": "string",
           "format": "date",
@@ -97,7 +83,7 @@
           "description": "The status of the booking (e.g., Booked, Collected)."
         }
       },
-      "required": ["id", "date", "timeSlot", "status"]
+      "required": ["date", "timeSlot", "status"]
     }
   },
   "auth": {
@@ -116,11 +102,11 @@
           "schema": {
             "$ref": "#/backend/entities/Citizen"
           },
-          "description": "Stores citizen profile data, indexed by Firebase Auth UID. The smartCardNumber is a field within the document for secure querying during login.",
+          "description": "Stores citizen profile data, indexed by their Smart Card number (citizenId).",
           "params": [
             {
               "name": "citizenId",
-              "description": "The unique identifier of the citizen, matching the Firebase Auth UID."
+              "description": "The unique Smart Card number of the citizen."
             }
           ]
         }
@@ -132,11 +118,11 @@
           "schema": {
             "$ref": "#/backend/entities/Booking"
           },
-          "description": "Stores ration collection bookings for each citizen, indexed by their Firebase Auth UID.",
+          "description": "Stores ration collection bookings for each citizen, indexed by their Smart Card number (citizenId).",
           "params": [
             {
               "name": "citizenId",
-              "description": "The unique identifier of the citizen making the booking, matching their Firebase Auth UID."
+              "description": "The unique Smart Card number of the citizen making the booking."
             }
           ]
         }

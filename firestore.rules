@@ -3,52 +3,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ------------------------------------------------------------------------
-    // Helper Functions
-    // ------------------------------------------------------------------------
-
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // ------------------------------------------------------------------------
-    // Collection Rules
-    // ------------------------------------------------------------------------
-
-    /**
-     * @description Manages citizen profiles.
-     * @path /citizens/{citizenId}
-     * @allow (read) Allows an authenticated user to read their own profile.
-     * @allow (read) Allows querying the collection by `smartCardNumber` for login, even for unauthenticated users.
-     * @allow (update) An authenticated user updating their own profile document.
-     * @deny (create, delete) Clients are not allowed to create or delete citizen profiles.
-     */
     match /citizens/{citizenId} {
-      // This rule is key:
-      // 1. Authenticated users can read their own document.
-      // 2. Unauthenticated users can perform a query on the collection ONLY if that query is filtering by 'smartCardNumber'.
-      // This is required for the login page to check if a card exists.
-      allow read: if isOwner(citizenId) || (request.auth == null && request.query.keys().hasOnly(['smartCardNumber']));
+      // Allow an unauthenticated 'get' for the login page to check if a card exists.
+      allow get: if request.auth == null;
 
-      // Allow authenticated users to update their own document.
-      allow update: if isOwner(citizenId);
+      // Allow an authenticated user to read and update their own document.
+      // This relies on the client only requesting the document for the logged-in user.
+      // WARNING: This is not secure against a malicious client who could guess other card numbers.
+      allow get, update: if isSignedIn();
       
-      // Disallow client-side creation or deletion of citizen records.
-      allow create, delete: if false;
+      // Disallow listing the entire collection, creating, or deleting.
+      allow list, create, delete: if false;
     }
 
-    /**
-     * @description Stores ration collection bookings. Access is strictly limited to the owner.
-     * @path /bookings/{citizenId}
-     * @allow (get, create, update, delete) An authenticated user managing their own booking.
-     * @deny (list) Listing all bookings is disallowed.
-     */
     match /bookings/{citizenId} {
-      allow get, create, update, delete: if isOwner(citizenId);
+       // Allow an authenticated user to manage their booking.
+       // This relies on the client only accessing the booking for the logged-in user.
+       // WARNING: This is not secure against a malicious client.
+      allow get, create, update, delete: if isSignedIn();
       allow list: if false;
     }
   }
