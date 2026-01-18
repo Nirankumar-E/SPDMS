@@ -46,6 +46,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
+      // The new dashboard layout will handle redirection logic
       router.push('/dashboard');
     }
   }, [user, isUserLoading, router]);
@@ -53,13 +54,13 @@ export default function LoginPage() {
   const setupRecaptcha = () => {
     if (!auth) return;
     if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
+      window.recaptchaVerifier.clear();
     }
     window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {
-          // reCAPTCHA solved, allow signInWithPhoneNumber.
-        },
+      size: 'invisible',
+      callback: () => {
+        // reCAPTCHA solved, allow signInWithPhoneNumber.
+      },
     });
   };
 
@@ -76,9 +77,9 @@ export default function LoginPage() {
     setupRecaptcha();
 
     try {
-      const beneficiariesRef = collection(firestore, 'beneficiaries');
+      const citizensRef = collection(firestore, 'citizens');
       const q = query(
-        beneficiariesRef,
+        citizensRef,
         where('smartCardNumber', '==', smartCardNumber)
       );
       const querySnapshot = await getDocs(q);
@@ -87,27 +88,26 @@ export default function LoginPage() {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Invalid Smart Card Number.',
+          description: 'Smart Card not registered.',
         });
         setIsLoading(false);
         return;
       }
 
-      const beneficiaryDoc = querySnapshot.docs[0];
-      const phoneNumber = beneficiaryDoc.data().phoneNumber;
+      const citizenDoc = querySnapshot.docs[0];
+      const phoneNumber = citizenDoc.data().registeredMobile;
 
       if (!phoneNumber) {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'No phone number is associated with this card.',
+          description: 'No mobile number is associated with this card.',
         });
         setIsLoading(false);
         return;
       }
       
       const appVerifier = window.recaptchaVerifier!;
-      // Format phone number to E.164 standard
       const fullPhoneNumber = `+${phoneNumber.replace(/[^0-9]/g, '')}`;
 
       const confirmationResult = await signInWithPhoneNumber(
@@ -134,22 +134,24 @@ export default function LoginPage() {
   };
 
   const handleVerifyOtp = async () => {
-    if (!otp) {
+    if (!otp || otp.length !== 6) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Please enter the OTP.',
+        description: 'Please enter the 6-digit OTP.',
       });
       return;
     }
     setIsLoading(true);
     try {
+      // The user mentioned OTP verification isn't a priority,
+      // but we still need to call confirm() to complete the sign-in flow.
       const result = await window.confirmationResult?.confirm(otp);
       if (result?.user) {
         toast({ title: 'Success', description: 'Logged in successfully!' });
         router.push('/dashboard');
       } else {
-        throw new Error('Invalid OTP');
+        throw new Error('Could not verify OTP.');
       }
     } catch (error: any) {
       console.error('Error verifying OTP:', error);
@@ -164,7 +166,6 @@ export default function LoginPage() {
   };
 
   const handleQrScanSuccess = (decodedText: string) => {
-    // Assuming the QR code contains just the number. Add more parsing if needed.
     const numericText = decodedText.replace(/[^0-9]/g, '').slice(0, 12);
     setSmartCardNumber(numericText);
     setScannerOpen(false);
@@ -174,16 +175,12 @@ export default function LoginPage() {
     });
   };
 
-  if (isUserLoading) {
+  if (isUserLoading || user) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         Loading...
       </div>
     );
-  }
-
-  if (user) {
-    return null; // Redirecting...
   }
 
   return (
@@ -214,18 +211,18 @@ export default function LoginPage() {
                   <Input
                     id="smartCardNumber"
                     type="text"
-                    placeholder="Enter 12-digit Smart Card Number"
+                    placeholder="Enter 12-digit number"
                     value={smartCardNumber}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Allow only numbers and limit to 12 digits
                       if (/^\d*$/.test(value) && value.length <= 12) {
                         setSmartCardNumber(value);
                       }
                     }}
                     disabled={isOtpSent || isLoading}
                     required
-                    maxLength={12}
+                    pattern="\d{12}"
+                    title="Smart Card Number must be 12 digits."
                   />
                   <Button
                     type="button"

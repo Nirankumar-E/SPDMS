@@ -1,115 +1,103 @@
 {
   "entities": {
-    "Beneficiary": {
+    "Citizen": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Beneficiary",
+      "title": "Citizen",
       "type": "object",
-      "description": "Represents a beneficiary in the Public Distribution System.",
+      "description": "Represents a citizen's profile and ration card details in the Public Distribution System.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the Beneficiary entity."
+          "description": "Unique identifier for the Citizen, matching the Firebase Auth UID."
         },
         "smartCardNumber": {
           "type": "string",
-          "description": "The unique Smart Card number assigned to the beneficiary."
+          "description": "The unique Smart Card number assigned to the family."
+        },
+        "cardType": {
+          "type": "string",
+          "description": "Type of the family card (e.g., PHH, NPHH)."
+        },
+        "fpsCode": {
+          "type": "string",
+          "description": "The code for the Fair Price Shop assigned to the card."
+        },
+        "district": {
+          "type": "string",
+          "description": "The district where the card is registered."
+        },
+        "registeredMobile": {
+          "type": "string",
+          "description": "The mobile number registered with the smart card."
+        },
+        "profileCompleted": {
+          "type": "boolean",
+          "description": "Flag indicating if the user has completed their initial profile setup."
+        },
+        "familyMembers": {
+          "type": "array",
+          "description": "A list of family members on the ration card.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "age": { "type": "number" },
+              "gender": { "type": "string" },
+              "relation": { "type": "string" }
+            },
+            "required": ["id", "name", "relation"]
+          }
+        },
+        "rationAllocation": {
+          "type": "object",
+          "description": "The monthly ration allocation for the card.",
+          "properties": {
+            "rice": { "type": "string" },
+            "wheat": { "type": "string" },
+            "sugar": { "type": "string" },
+            "palmOil": { "type": "string" },
+            "toorDal": { "type": "string" }
+          }
         },
         "name": {
-          "type": "string",
-          "description": "Name of the beneficiary."
-        },
-        "address": {
-          "type": "string",
-          "description": "Address of the beneficiary."
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "Phone number registered with the smart card."
-        },
-        "familyCardId": {
-          "type": "string",
-          "description": "Reference to FamilyCard. (Relationship: FamilyCard 1:N Beneficiary)"
+            "type": "string",
+            "description": "Name of the head of family."
         }
       },
       "required": [
         "id",
         "smartCardNumber",
-        "name",
-        "address",
-        "phoneNumber",
-        "familyCardId"
+        "registeredMobile",
+        "familyMembers",
+        "name"
       ]
     },
-    "FamilyCard": {
+    "Booking": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "FamilyCard",
+      "title": "Booking",
       "type": "object",
-      "description": "Represents a family card in the Public Distribution System.",
+      "description": "Represents a time slot booking for ration collection.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the FamilyCard entity."
+          "description": "Unique identifier for the Booking, matching the citizen's UID."
         },
-        "cardNumber": {
+        "date": {
           "type": "string",
-          "description": "The unique card number assigned to the family."
+          "format": "date",
+          "description": "The selected date for ration collection."
         },
-        "headOfFamily": {
+        "timeSlot": {
           "type": "string",
-          "description": "Name of the head of the family."
-        },
-        "address": {
-          "type": "string",
-          "description": "Address of the family."
-        },
-        "cardType": {
-          "type": "string",
-          "description": "Type of the family card (e.g., AAY, PHH)."
-        }
-      },
-      "required": [
-        "id",
-        "cardNumber",
-        "headOfFamily",
-        "address",
-        "cardType"
-      ]
-    },
-    "Grievance": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Grievance",
-      "type": "object",
-      "description": "Represents a grievance submitted by a beneficiary.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Grievance entity."
-        },
-        "beneficiaryId": {
-          "type": "string",
-          "description": "Reference to Beneficiary. (Relationship: Beneficiary 1:N Grievance)"
-        },
-        "submissionDate": {
-          "type": "string",
-          "description": "Date when the grievance was submitted.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the grievance."
+          "description": "The selected time slot for ration collection."
         },
         "status": {
           "type": "string",
-          "description": "Status of the grievance (e.g., Open, In Progress, Resolved)."
+          "description": "The status of the booking (e.g., Booked, Collected)."
         }
       },
-      "required": [
-        "id",
-        "beneficiaryId",
-        "submissionDate",
-        "description",
-        "status"
-      ]
+      "required": ["id", "date", "timeSlot", "status"]
     }
   },
   "auth": {
@@ -122,54 +110,37 @@
   "firestore": {
     "structure": [
       {
-        "path": "/beneficiaries/{beneficiaryId}",
+        "path": "/citizens/{citizenId}",
         "definition": {
-          "entityName": "Beneficiary",
+          "entityName": "Citizen",
           "schema": {
-            "$ref": "#/backend/entities/Beneficiary"
+            "$ref": "#/backend/entities/Citizen"
           },
-          "description": "Stores beneficiary data, indexed by document id. The document id is also stored in the id property.",
+          "description": "Stores citizen profile data, indexed by Firebase Auth UID. The smartCardNumber is a field within the document for secure querying during login.",
           "params": [
             {
-              "name": "beneficiaryId",
-              "description": "The unique identifier of the beneficiary document. This is also stored in the `id` property."
+              "name": "citizenId",
+              "description": "The unique identifier of the citizen, matching the Firebase Auth UID."
             }
           ]
         }
       },
       {
-        "path": "/familyCards/{familyCardId}",
+        "path": "/bookings/{citizenId}",
         "definition": {
-          "entityName": "FamilyCard",
+          "entityName": "Booking",
           "schema": {
-            "$ref": "#/backend/entities/FamilyCard"
+            "$ref": "#/backend/entities/Booking"
           },
-          "description": "Stores data about the family cards, indexed by familyCardId.",
+          "description": "Stores ration collection bookings for each citizen, indexed by their Firebase Auth UID.",
           "params": [
             {
-              "name": "familyCardId",
-              "description": "The unique identifier of the family card document."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/grievances/{grievanceId}",
-        "definition": {
-          "entityName": "Grievance",
-          "schema": {
-            "$ref": "#/backend/entities/Grievance"
-          },
-          "description": "Stores grievances submitted by beneficiaries. Each document includes the beneficiaryId.",
-          "params": [
-            {
-              "name": "grievanceId",
-              "description": "The unique identifier of the grievance document."
+              "name": "citizenId",
+              "description": "The unique identifier of the citizen making the booking, matching their Firebase Auth UID."
             }
           ]
         }
       }
-    ],
-    "reasoning": "The Firestore structure is designed to support a secure smart card-based login for the Citizen Public Distribution System (PDS) web application. The core principle is Authorization Independence, achieved by avoiding `get()` calls in security rules. This is realized through structural segregation and by storing all authorization-relevant data directly within the documents that need protection. The structure facilitates straightforward security rules, enabling simple `list` operations and maintaining the integrity of ownership and timestamps.\n\nThe `beneficiaries` collection stores the core user data, indexed by `smartCardNumber` for efficient login validation. The `familyCards` collection stores data about the family cards. The `grievances` collection stores grievances submitted by the beneficiaries.\n\nThis structure is designed to ensure that:\n\n1.  **Authorization Independence:** Security rules can be written based solely on the content of the request and the document being accessed, without needing to fetch data from parent documents.\n2.  **Clarity of Intent:** The structure clearly indicates the authorization requirements for each collection.\n3.  **No Custom Claims (DBAC):** Roles and permissions are managed within the database itself.\n4.  **Rules are not Filters (QAPs):** Security rules can efficiently filter data during `list` operations without requiring complex queries or client-side filtering.\n5.  **Invariants:** The structure supports maintaining the integrity of ownership, timestamps, and denormalized data."
+    ]
   }
 }

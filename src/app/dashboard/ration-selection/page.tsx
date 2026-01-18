@@ -1,8 +1,12 @@
 'use client';
 
-import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useDashboard } from '../layout';
+import { useFirestore, useAuth } from '@/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -11,81 +15,186 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, ShoppingCart, CheckCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, ShoppingCart, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
+
+const bookingSchema = z.object({
+  date: z.date({
+    required_error: 'A date for pickup is required.',
+  }),
+  timeSlot: z.string({
+    required_error: 'Please select a time slot.',
+  }),
+});
+
+type BookingFormValues = z.infer<typeof bookingSchema>;
 
 export default function RationSelectionPage() {
-  const { user, isUserLoading } = useUser();
+  const { citizen } = useDashboard();
+  const { user } = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
 
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push('/login');
+  const form = useForm<BookingFormValues>({
+    resolver: zodResolver(bookingSchema),
+  });
+
+  const onSubmit: SubmitHandler<BookingFormValues> = async (data) => {
+    if (!user || !citizen) return;
+
+    try {
+      const bookingRef = doc(firestore, 'bookings', user.uid);
+      await setDoc(bookingRef, {
+        id: user.uid,
+        smartCardNumber: citizen.smartCardNumber,
+        date: format(data.date, 'yyyy-MM-dd'),
+        timeSlot: data.timeSlot,
+        status: 'Booked',
+      });
+
+      toast({
+        title: 'Booking Confirmed!',
+        description: `Your time slot for ${format(data.date, 'PPP')} at ${data.timeSlot} is confirmed.`,
+      });
+
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Booking Failed',
+        description: 'Could not save your booking. Please try again.',
+      });
     }
-  }, [user, isUserLoading, router]);
+  };
 
-  if (isUserLoading || !user) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        Loading...
-      </div>
-    );
+  if (!citizen) {
+    return <div>Loading...</div>;
   }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
       <Card className="w-full max-w-2xl shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl text-primary font-headline flex items-center gap-2">
-            <ShoppingCart className="h-6 w-6" />
-            Ration Selection & Time Slot Booking
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl text-primary font-headline flex items-center gap-2">
+              <ShoppingCart className="h-6 w-6" />
+              Ration Selection & Time Slot Booking
+            </CardTitle>
+            <Button variant="ghost" size="icon" asChild>
+                <Link href="/dashboard">
+                    <ArrowLeft />
+                </Link>
+            </Button>
+          </div>
           <CardDescription>
-            Select your monthly ration items and book a collection slot.
+            Confirm your items and book a collection slot.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Ration Items */}
           <div>
             <h3 className="font-semibold text-lg mb-2">
-              Your Ration Card Details
+              Your Monthly Ration Allocation
             </h3>
-            <div className="p-4 bg-gray-50 rounded-md border text-sm space-y-1">
-              <p>
-                <strong>Card Number:</strong> ***********1234
-              </p>
-              <p>
-                <strong>Card Type:</strong> PHH
-              </p>
-              <p>
-                <strong>Head of Family:</strong> {user.displayName || 'N/A'}
-              </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {Object.entries(citizen.rationAllocation).map(([item, quantity]) => (
+                <div key={item} className="p-3 bg-gray-50 rounded-md border text-sm">
+                  <p className="font-semibold capitalize">{item}</p>
+                  <p>{quantity}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div>
-            <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5" /> Select Your Ration Items for
-              this Month
-            </h3>
-            <div className="p-4 border rounded-md space-y-2">
-              <p>Rice: 20kg</p>
-              <p>Sugar: 1kg</p>
-              <p>Kerosene: 1L</p>
-            </div>
-          </div>
+          {/* Booking Form */}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Date Picker */}
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Choose Collection Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={'outline'}
+                              className={cn(
+                                'w-full pl-3 text-left font-normal',
+                                !field.value && 'text-muted-foreground'
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, 'PPP')
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              date < new Date() || date < new Date('1900-01-01')
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          <div>
-            <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
-              <Calendar className="h-5 w-5" /> Choose Collection Slot
-            </h3>
-            <div className="p-4 border rounded-md">
-              <p>Date and time selection functionality will be here.</p>
-            </div>
-          </div>
+                {/* Time Slot Picker */}
+                <FormField
+                  control={form.control}
+                  name="timeSlot"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Choose Collection Slot</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a time slot" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="09:00 AM - 10:00 AM">09:00 AM - 10:00 AM</SelectItem>
+                          <SelectItem value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</SelectItem>
+                          <SelectItem value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</SelectItem>
+                          <SelectItem value="02:00 PM - 03:00 PM">02:00 PM - 03:00 PM</SelectItem>
+                          <SelectItem value="03:00 PM - 04:00 PM">03:00 PM - 04:00 PM</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-          <Button className="w-full bg-green-600 hover:bg-green-700">
-            <CheckCircle className="mr-2 h-5 w-5" />
-            Confirm Booking
-          </Button>
+              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={form.formState.isSubmitting}>
+                <CheckCircle className="mr-2 h-5 w-5" />
+                {form.formState.isSubmitting ? 'Booking...' : 'Confirm Booking'}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

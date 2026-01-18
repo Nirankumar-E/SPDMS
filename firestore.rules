@@ -1,25 +1,4 @@
-/**
- * Core Philosophy: This ruleset enforces a strict beneficiary-ownership model for a Citizen Public Distribution System (PDS).
- * Authenticated users (beneficiaries) have full control over their own data and associated records like grievances.
- * Access to other beneficiaries' data is strictly prohibited.
- *
- * Data Structure: The data is organized into three top-level collections:
- * - /beneficiaries/{beneficiaryId}: Contains the core profile for each citizen. The document ID must match the user's authentication UID.
- * - /familyCards/{familyCardId}: Contains reference data about family cards. This data is considered read-only for beneficiaries.
- * - /grievances/{grievanceId}: Stores user-submitted grievances, with each document containing a 'beneficiaryId' to enforce ownership.
- *
- * Key Security Decisions:
- * - User Privacy: Listing all beneficiaries or all grievances is explicitly disallowed to prevent data scraping and protect user privacy, with a specific exception for the login flow.
- * - Read-Only Reference Data: The `/familyCards` collection is treated as system-managed data. Clients can read it for display purposes but cannot modify it, ensuring data integrity.
- * - Ownership Enforcement: All write operations on beneficiary-owned data (profiles, grievances) are strictly validated to ensure the acting user is the owner.
- *
- * Denormalization for Authorization: To ensure fast and secure rule execution without costly `get()` calls, the security model relies on
- * denormalized ownership fields. Specifically, each document in the `/grievances` collection must contain a `beneficiaryId` field that
- * matches the owner's UID. This allows rules to authorize access based solely on the document's content.
- *
- * Structural Segregation: The use of distinct top-level collections for different data types (/beneficiaries, /familyCards, /grievances)
- * creates clear and secure boundaries for access control.
- */
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -28,67 +7,12 @@ service cloud.firestore {
     // Helper Functions
     // ------------------------------------------------------------------------
 
-    /**
-     * Checks if the user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the requesting user's UID matches the document ID in the path.
-     * Used for collections where the document ID is the user's UID.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * Checks if the requesting user's UID matches an owner ID field within a document.
-     */
-    function isDocumentOwner(ownerId) {
-      return isSignedIn() && request.auth.uid == ownerId;
-    }
-
-    /**
-     * Combines existence check and ownership check for state-changing operations (update, delete).
-     * This prevents modifying or deleting non-existent documents.
-     */
-    function isExistingDocumentOwner(ownerId) {
-      return resource != null && isDocumentOwner(ownerId);
-    }
-
-    // --- Validation Functions (Prototyping Mode) ---
-    // These functions only validate fields critical for authorization and relational integrity.
-
-    /**
-     * Validates that a new beneficiary profile is being created by the owner and
-     * that the internal 'id' field matches the document ID for relational integrity.
-     */
-    function isCreatingOwnBeneficiaryProfile(beneficiaryId) {
-      return isOwner(beneficiaryId) && request.resource.data.id == beneficiaryId;
-    }
-
-    /**
-     * Ensures the beneficiary 'id' field cannot be changed after creation.
-     */
-    function beneficiaryIdIsImmutable() {
-      return request.resource.data.id == resource.data.id;
-    }
-
-    /**
-     * Validates that a new grievance is being created by an authenticated user and
-     * that the internal 'beneficiaryId' is correctly set to their own UID.
-     */
-    function isCreatingOwnGrievance() {
-      return isSignedIn() && request.resource.data.beneficiaryId == request.auth.uid;
-    }
-
-    /**
-     * Ensures the 'beneficiaryId' on a grievance cannot be changed after creation.
-     */
-    function grievanceOwnerIsImmutable() {
-      return request.resource.data.beneficiaryId == resource.data.beneficiaryId;
     }
 
     // ------------------------------------------------------------------------
@@ -96,55 +20,35 @@ service cloud.firestore {
     // ------------------------------------------------------------------------
 
     /**
-     * @description Manages beneficiary profiles. Only the beneficiary can read or modify their own profile.
+     * @description Manages citizen profiles. Only the owner can read or modify their own profile.
      * A special list rule allows unauthenticated users to query for a smart card number for the login flow.
-     * @path /beneficiaries/{beneficiaryId}
-     * @allow (create) An authenticated user creating their own profile document where the doc ID matches their UID. auth.uid: "user123", path: "/beneficiaries/user123".
-     * @allow (list) An unauthenticated user querying for a smart card number.
-     * @deny (get) A user trying to read another user's profile. auth.uid: "user123", path: "/beneficiaries/user456".
-     * @deny (list) An authenticated user trying to list all beneficiaries in the system.
-     * @principle Restricts access to a user's own data tree and prevents enumeration of all users, except for login.
+     * @path /citizens/{citizenId}
+     * @allow (list) Unauthenticated user querying for a smart card number to initiate login.
+     * @allow (get, update) An authenticated user reading or updating their own profile document.
+     * @deny (create, delete) Clients are not allowed to create or delete citizen profiles.
+     * @deny (list) Authenticated users are not allowed to list all citizens.
      */
-    match /beneficiaries/{beneficiaryId} {
-      allow get: if isOwner(beneficiaryId);
+    match /citizens/{citizenId} {
       // Allow unauthenticated users to query by smartCardNumber for login purposes ONLY.
+      // This is secure because it only allows a query on this specific field.
       allow list: if !isSignedIn() && request.query.keys().hasOnly(['smartCardNumber']);
-      allow create: if isCreatingOwnBeneficiaryProfile(beneficiaryId);
-      allow update: if isOwner(beneficiaryId) && resource != null && beneficiaryIdIsImmutable();
-      allow delete: if isOwner(beneficiaryId) && resource != null;
+
+      // Allow authenticated users to read and write to their own document.
+      allow get, update: if isOwner(citizenId);
+      
+      // Disallow client-side creation or deletion of citizen records.
+      allow create, delete: if false;
     }
 
     /**
-     * @description Stores public reference data about family cards. This data is read-only for all authenticated users.
-     * @path /familyCards/{familyCardId}
-     * @allow (get, list) Any authenticated user reading family card documents. auth.uid: "user123".
-     * @deny (create) Any client attempting to create a new family card document.
-     * @principle Protects system reference data from client-side modification.
+     * @description Stores ration collection bookings. Access is strictly limited to the owner.
+     * @path /bookings/{citizenId}
+     * @allow (get, create, update, delete) An authenticated user managing their own booking.
+     * @deny (list) Listing all bookings is disallowed.
      */
-    match /familyCards/{familyCardId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    /**
-     * @description Stores grievances submitted by beneficiaries. Access is strictly limited to the owner.
-     * @path /grievances/{grievanceId}
-     * @allow (create) An authenticated user creating a grievance and setting the `beneficiaryId` to their own UID. auth.uid: "user123".
-     * @allow (get) An authenticated user reading a grievance they previously submitted. auth.uid: "user123", resource.data.beneficiaryId: "user123".
-     * @deny (get) A user trying to read a grievance submitted by another user. auth.uid: "user456", resource.data.beneficiaryId: "user123".
-     * @deny (list) Any user attempting to list all grievances, which would expose private data.
-     * @principle Enforces document ownership for all operations based on a `beneficiaryId` field.
-     */
-    match /grievances/{grievanceId} {
-      allow get: if isExistingDocumentOwner(resource.data.beneficiaryId);
-      // Allow a user to list only their own grievances.
-      allow list: if isSignedIn() && request.query.keys().hasOnly(['beneficiaryId']) && request.query.beneficiaryId == request.auth.uid;
-      allow create: if isCreatingOwnGrievance();
-      allow update: if isExistingDocumentOwner(resource.data.beneficiaryId) && grievanceOwnerIsImmutable();
-      allow delete: if isExistingDocumentOwner(resource.data.beneficiaryId);
+    match /bookings/{citizenId} {
+      allow get, create, update, delete: if isOwner(citizenId);
+      allow list: if false;
     }
   }
 }
