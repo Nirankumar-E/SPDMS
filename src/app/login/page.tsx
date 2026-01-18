@@ -309,18 +309,6 @@ export default function LoginPage() {
               </Button>
             </form>
           <div id="recaptcha-container" className="mt-4"></div>
-            <div className="mt-6 border-t pt-4">
-              <p className="text-sm text-center text-muted-foreground mb-2">For testing purposes:</p>
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={handleSeedData}
-                disabled={isLoading}
-              >
-                <Database className="mr-2 h-4 w-4" />
-                Seed Sample Data
-              </Button>
-            </div>
         </CardContent>
       </Card>
     </div>
