@@ -14,7 +14,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import GovernmentEmblem from '@/components/icons/government-emblem';
-import { User as UserIcon, LogOut } from 'lucide-react';
+import { User as UserIcon, LogOut, ShoppingCart } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -98,6 +99,13 @@ export default function DashboardPage() {
           ) : (
              <p>Could not load your profile details.</p>
           )}
+
+          <Button asChild className="w-full bg-green-600 hover:bg-green-700">
+            <Link href="/dashboard/ration-selection">
+              <ShoppingCart className="h-5 w-5" />
+              Ration Selection & Time Slot Booking
+            </Link>
+          </Button>
 
           <div className="border-t pt-4 flex justify-between items-center">
              <div className="flex items-center gap-2 text-sm text-gray-600">
