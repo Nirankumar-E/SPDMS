@@ -49,7 +49,8 @@ export default function LoginPage() {
 
   
   const handleSendOtp = async () => {
-    if (!smartCardNumber) {
+    const trimmedSmartCardNumber = smartCardNumber.trim();
+    if (!trimmedSmartCardNumber) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -60,7 +61,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const citizenRef = doc(firestore, 'citizens', smartCardNumber);
+      const citizenRef = doc(firestore, 'citizens', trimmedSmartCardNumber);
       const docSnap = await getDoc(citizenRef);
 
 
@@ -103,9 +104,9 @@ export default function LoginPage() {
       // Per instructions, bypass real OTP verification.
       // We will sign the user in anonymously to create a session,
       // and pass the smart card number to the dashboard to fetch data.
-      
+      const trimmedSmartCardNumber = smartCardNumber.trim();
       // Store the smart card number in localStorage so the dashboard can retrieve it.
-      localStorage.setItem('loggedInSmartCardNumber', smartCardNumber);
+      localStorage.setItem('loggedInSmartCardNumber', trimmedSmartCardNumber);
 
       // Sign in anonymously to establish a Firebase session
       await signInAnonymously(auth);
