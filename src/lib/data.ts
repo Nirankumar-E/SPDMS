@@ -3,12 +3,12 @@ import { FileText, Users, Building, FileSearch, ShoppingCart, Microscope, User, 
 export const leftSidebarServices = [
   { name: ' குடிமக்கள் உள்நுழைவு', icon: LogIn, color: '', href: '/login' },
   { name: 'பயனாளி சேவைகள்', icon: User, color: '', href: '#' },
-  { name: 'குடும்ப அட்டை சேவைகள்', icon: Users, color: 'bg-orange-500', href: '#' },
-  { name: 'NFSA சேவைகள்', icon: FileText, color: 'bg-blue-500', href: '#' },
-  { name: 'NFSA தொடர்பான படிவங்கள்', icon: FilePlus, color: 'bg-teal-500', href: '#' },
-  { name: 'TN-PDS சேவைகள்', icon: Building, color: 'bg-purple-500', href: '#' },
-  { name: 'நியாய விலைக் கடை சேவைகள்', icon: ShoppingCart, color: 'bg-red-500', href: '#' },
-  { name: 'ஆய்வு மற்றும் கண்காணிப்பு', icon: Microscope, color: 'bg-yellow-600', href: '#' },
+  { name: 'குடும்ப அட்டை சேவைகள்', icon: Users, color: '', href: '#' },
+  { name: 'NFSA சேவைகள்', icon: FileText, color: '', href: '#' },
+  { name: 'NFSA தொடர்பான படிவங்கள்', icon: FilePlus, color: '', href: '#' },
+  { name: 'TN-PDS சேவைகள்', icon: Building, color: '', href: '#' },
+  { name: 'நியாய விலைக் கடை சேவைகள்', icon: ShoppingCart, color: '', href: '#' },
+  { name: 'ஆய்வு மற்றும் கண்காணிப்பு', icon: Microscope, color: '', href: '#' },
 ];
 
 export const stats = [
