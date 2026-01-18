@@ -12,13 +12,13 @@ export default function Home() {
       <Header />
       <main className="flex-grow container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <aside className="lg:col-span-2">
+          <aside className="lg:col-span-2 order-2 lg:order-1">
             <LeftSidebar />
           </aside>
-          <section className="lg:col-span-7">
+          <section className="lg:col-span-7 order-1 lg:order-2">
             <MainContent />
           </section>
-          <aside className="lg:col-span-3">
+          <aside className="lg:col-span-3 order-3">
             <RightSidebar />
           </aside>
         </div>
