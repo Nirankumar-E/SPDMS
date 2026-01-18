@@ -21,6 +21,7 @@ export interface LeftSidebarTranslations {
   tnpdsServices: string;
   fpsServices: string;
   inspection: string;
+  rationSelection: string;
 }
 
 export interface MainContentTranslations {
@@ -38,6 +39,10 @@ export interface MainContentTranslations {
     description: string;
   };
   cardStatus: {
+    title: string;
+    description: string;
+  };
+  rationSelection: {
     title: string;
     description: string;
   };
@@ -136,6 +141,7 @@ export const translations: Record<Language, Translations> = {
       tnpdsServices: 'TN-PDS சேவைகள்',
       fpsServices: 'நியாய விலைக் கடை சேவைகள்',
       inspection: 'ஆய்வு மற்றும் கண்காணிப்பு',
+      rationSelection: 'ரேஷன் தேர்வு',
     },
     mainContent: {
       title: 'செயல்படுத்தல் நிலைமை',
@@ -154,6 +160,10 @@ export const translations: Record<Language, Translations> = {
       cardStatus: {
         title: 'தங்கள் அட்டை நிலையை மாற்ற',
         description: 'உங்கள் அட்டை தொடர்பான கோரிக்கைகளின் நிலையை அறிய',
+      },
+      rationSelection: {
+        title: 'ரேஷன் தேர்வு & நேர ஒதுக்கீடு',
+        description: 'உங்கள் மாதாந்திர ரேஷன் பொருட்களை தேர்வு செய்து, சேகரிப்பு நேரத்தை பதிவு செய்யவும்',
       },
     },
     rightSidebar: {
@@ -235,6 +245,7 @@ export const translations: Record<Language, Translations> = {
       tnpdsServices: 'TN-PDS Services',
       fpsServices: 'Fair Price Shop Services',
       inspection: 'Inspection & Monitoring',
+      rationSelection: 'Ration Selection',
     },
     mainContent: {
       title: 'Implementation Status',
@@ -253,6 +264,10 @@ export const translations: Record<Language, Translations> = {
       cardStatus: {
         title: 'Track Your Card Status',
         description: 'Know the status of your card related requests',
+      },
+      rationSelection: {
+        title: 'Ration Selection & Time Slot Booking',
+        description: 'Select your monthly ration items and book a collection slot',
       },
     },
     rightSidebar: {
