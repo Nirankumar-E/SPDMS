@@ -305,7 +305,7 @@ export default function LoginPage() {
                   ? 'Processing...'
                   : isOtpSent
                   ? 'Verify & Login'
-                  : 'Check Smart Card'}
+                  : 'Verify'}
               </Button>
             </form>
           <div id="recaptcha-container" className="mt-4"></div>
