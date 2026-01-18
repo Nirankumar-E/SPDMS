@@ -8,16 +8,18 @@ service cloud.firestore {
     }
 
     match /citizens/{citizenId} {
-      // Allow an unauthenticated 'get' for the login page to check if a card exists.
-      allow get: if request.auth == null;
+      // Allow an unauthenticated 'get' to check if a card exists
+      // and 'create' to allow the "Seed Sample Data" button to work.
+      // This is for development purposes and should be secured in production.
+      allow get, create: if true;
 
       // Allow an authenticated user to read and update their own document.
       // This relies on the client only requesting the document for the logged-in user.
       // WARNING: This is not secure against a malicious client who could guess other card numbers.
-      allow get, update: if isSignedIn();
+      allow read, update: if isSignedIn();
       
-      // Disallow listing the entire collection, creating, or deleting.
-      allow list, create, delete: if false;
+      // Disallow deleting from the client.
+      allow delete: if false;
     }
 
     match /bookings/{citizenId} {
