@@ -65,11 +65,11 @@ export default function LoginPage() {
   };
 
   const handleSendOtp = async () => {
-    if (!smartCardNumber || smartCardNumber.length !== 12) {
+    if (!smartCardNumber) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Please enter your 12-digit Smart Card Number.',
+        description: 'Please enter your Smart Card Number.',
       });
       return;
     }
@@ -166,8 +166,7 @@ export default function LoginPage() {
   };
 
   const handleQrScanSuccess = (decodedText: string) => {
-    const numericText = decodedText.replace(/[^0-9]/g, '').slice(0, 12);
-    setSmartCardNumber(numericText);
+    setSmartCardNumber(decodedText);
     setScannerOpen(false);
     toast({
       title: 'Success',
@@ -211,18 +210,11 @@ export default function LoginPage() {
                   <Input
                     id="smartCardNumber"
                     type="text"
-                    placeholder="Enter 12-digit number"
+                    placeholder="Enter Smart Card Number"
                     value={smartCardNumber}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (/^\d*$/.test(value) && value.length <= 12) {
-                        setSmartCardNumber(value);
-                      }
-                    }}
+                    onChange={(e) => setSmartCardNumber(e.target.value)}
                     disabled={isOtpSent || isLoading}
                     required
-                    pattern="\d{12}"
-                    title="Smart Card Number must be 12 digits."
                   />
                   <Button
                     type="button"
