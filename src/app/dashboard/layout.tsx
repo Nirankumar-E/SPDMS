@@ -4,6 +4,7 @@ import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, createContext, useContext, ReactNode, useState } from 'react';
 import { doc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 // Define the shape of the citizen data based on your Firestore structure
 // This interface represents the data *within* a citizen document.
@@ -42,6 +43,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, isUserLoading: isAuthLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [smartCardNumber, setSmartCardNumber] = useState<string | null>(null);
 
@@ -94,7 +96,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         router.replace('/profile-setup');
       }
     }
-  }, [user, isAuthLoading, citizen, error, router]);
+  }, [user, isAuthLoading, citizen, error, router, toast]);
 
   const isLoading = isAuthLoading || isCitizenLoading;
 
