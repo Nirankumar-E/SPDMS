@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  signInWithPhoneNumber,
-  RecaptchaVerifier,
-  ConfirmationResult,
+  signInAnonymously,
 } from 'firebase/auth';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser } from '@/firebase';
@@ -24,13 +22,6 @@ import GovernmentEmblem from '@/components/icons/government-emblem';
 import QrScanner from '@/components/auth/QrScanner';
 import { QrCode, X } from 'lucide-react';
 
-// Extend the Window interface to include properties for Firebase Auth
-declare global {
-  interface Window {
-    recaptchaVerifier?: RecaptchaVerifier;
-    confirmationResult?: ConfirmationResult;
-  }
-}
 
 export default function LoginPage() {
   const [smartCardNumber, setSmartCardNumber] = useState('');
@@ -46,24 +37,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-      // The new dashboard layout will handle redirection logic
       router.push('/dashboard');
     }
   }, [user, isUserLoading, router]);
 
-  const setupRecaptcha = () => {
-    if (!auth) return;
-    if (window.recaptchaVerifier) {
-      window.recaptchaVerifier.clear();
-    }
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-      callback: () => {
-        // reCAPTCHA solved, allow signInWithPhoneNumber.
-      },
-    });
-  };
-
+  
   const handleSendOtp = async () => {
     if (!smartCardNumber) {
       toast({
@@ -74,7 +52,6 @@ export default function LoginPage() {
       return;
     }
     setIsLoading(true);
-    setupRecaptcha();
 
     try {
       const citizensRef = collection(firestore, 'citizens');
@@ -94,39 +71,15 @@ export default function LoginPage() {
         return;
       }
 
-      const citizenDoc = querySnapshot.docs[0];
-      const phoneNumber = citizenDoc.data().registeredMobile;
-
-      if (!phoneNumber) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'No mobile number is associated with this card.',
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      const appVerifier = window.recaptchaVerifier!;
-      const fullPhoneNumber = `+${phoneNumber.replace(/[^0-9]/g, '')}`;
-
-      const confirmationResult = await signInWithPhoneNumber(
-        auth,
-        fullPhoneNumber,
-        appVerifier
-      );
-      window.confirmationResult = confirmationResult;
+      // Smart card found, move to OTP screen without sending a real OTP.
       setIsOtpSent(true);
-      toast({ title: 'OTP Sent', description: `An OTP has been sent to the mobile number linked with Smart Card ${smartCardNumber}.` });
+      toast({ title: 'Verification Required', description: `Please enter the OTP to proceed.` });
     } catch (error: any) {
-      console.error('Error sending OTP:', error);
+      console.error('Error checking Smart Card:', error);
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
-        description:
-          error.code === 'auth/invalid-phone-number' 
-            ? 'The phone number associated with this card is invalid.'
-            : (error.message || 'Could not send OTP. Please try again later.'),
+        description: error.message || 'Could not verify Smart Card. Please try again later.',
       });
     } finally {
       setIsLoading(false);
@@ -138,27 +91,31 @@ export default function LoginPage() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Please enter the 6-digit OTP.',
+        description: 'Please enter a 6-digit code.',
       });
       return;
     }
     setIsLoading(true);
     try {
-      // The user mentioned OTP verification isn't a priority,
-      // but we still need to call confirm() to complete the sign-in flow.
-      const result = await window.confirmationResult?.confirm(otp);
-      if (result?.user) {
-        toast({ title: 'Success', description: 'Logged in successfully!' });
-        router.push('/dashboard');
-      } else {
-        throw new Error('Could not verify OTP.');
-      }
+      // Per instructions, bypass real OTP verification.
+      // We will sign the user in anonymously to create a session,
+      // and pass the smart card number to the dashboard to fetch data.
+      
+      // Store the smart card number in localStorage so the dashboard can retrieve it.
+      localStorage.setItem('loggedInSmartCardNumber', smartCardNumber);
+
+      // Sign in anonymously to establish a Firebase session
+      await signInAnonymously(auth);
+
+      toast({ title: 'Success', description: 'Logged in successfully!' });
+      router.push('/dashboard');
+      
     } catch (error: any) {
-      console.error('Error verifying OTP:', error);
+      console.error('Error during login:', error);
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: error.code === 'auth/invalid-verification-code' ? 'The OTP you entered is incorrect. Please try again.' : (error.message || 'Could not verify OTP.'),
+        description: error.message || 'An unexpected error occurred during login.',
       });
     } finally {
       setIsLoading(false);
@@ -238,7 +195,7 @@ export default function LoginPage() {
 
               {isOtpSent && (
                 <div className="space-y-2">
-                  <Label htmlFor="otp">Enter 6-digit OTP</Label>
+                  <Label htmlFor="otp">Enter 6-digit Code</Label>
                   <Input
                     id="otp"
                     type="text"
@@ -259,7 +216,7 @@ export default function LoginPage() {
                   ? 'Processing...'
                   : isOtpSent
                   ? 'Verify & Login'
-                  : 'Send OTP'}
+                  : 'Check Smart Card'}
               </Button>
             </form>
           <div id="recaptcha-container" className="mt-4"></div>

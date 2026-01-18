@@ -1,9 +1,9 @@
 'use client';
 
-import { useUser, useDoc, useFirestore } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, createContext, useContext, ReactNode } from 'react';
-import { doc } from 'firebase/firestore';
+import { useEffect, createContext, useContext, ReactNode, useState } from 'react';
+import { collection, query, where } from 'firebase/firestore';
 
 // Define the shape of the citizen data based on your Firestore structure
 interface Citizen {
@@ -39,21 +39,43 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const router = useRouter();
 
-  // Create a stable document reference
-  const citizenDocRef = user ? doc(firestore, 'citizens', user.uid) : null;
-  const { data: citizen, isLoading: isCitizenLoading, error } = useDoc<Citizen>(citizenDocRef);
+  const [smartCardNumber, setSmartCardNumber] = useState<string | null>(null);
+
+  // On the client, retrieve the smart card number from localStorage.
+  useEffect(() => {
+    const storedCardNumber = localStorage.getItem('loggedInSmartCardNumber');
+    if (storedCardNumber) {
+      setSmartCardNumber(storedCardNumber);
+    } else if (!isAuthLoading && !user) {
+      // If there's no stored card number and we're not loading auth, and there's no user,
+      // then they likely haven't logged in. Redirect them.
+      router.replace('/login');
+    }
+  }, [isAuthLoading, user, router]);
+
+
+  // Create a memoized query to fetch citizen data based on the smart card number
+  const citizenQuery = useMemoFirebase(() => {
+    if (!firestore || !smartCardNumber) return null;
+    return query(collection(firestore, 'citizens'), where('smartCardNumber', '==', smartCardNumber));
+  }, [firestore, smartCardNumber]);
+
+  const { data: citizenData, isLoading: isCitizenLoading, error } = useCollection<Citizen>(citizenQuery);
+
+  // Since useCollection returns an array, we get the first (and only) result.
+  const citizen = (citizenData && citizenData.length > 0) ? citizenData[0] : null;
 
   useEffect(() => {
     // If auth is done and there's no user, redirect to login
     if (!isAuthLoading && !user) {
+      localStorage.removeItem('loggedInSmartCardNumber');
       router.replace('/login');
       return;
     }
 
-    // If we have a user but fetching their citizen data fails (e.g., permissions)
+    // If we have a user but fetching their citizen data fails
     if (error) {
         console.error("Error fetching citizen data:", error);
-        // Handle error appropriately, maybe sign out and redirect
         router.replace('/login');
         return;
     }

@@ -23,16 +23,16 @@ service cloud.firestore {
      * @description Manages citizen profiles.
      * @path /citizens/{citizenId}
      * @allow (read) Allows an authenticated user to read their own profile.
-     * @allow (read) Allows querying the collection by `smartCardNumber` for login.
+     * @allow (read) Allows querying the collection by `smartCardNumber` for login, even for unauthenticated users.
      * @allow (update) An authenticated user updating their own profile document.
      * @deny (create, delete) Clients are not allowed to create or delete citizen profiles.
      */
     match /citizens/{citizenId} {
-      // Read is allowed if the user is the owner, OR if the request is a query
-      // filtering by smartCardNumber. This enables the login flow to find a user.
-      // NOTE: This rule is permissive for development. For production, a Cloud Function
-      // for lookup would be more secure to avoid leaking document data on queries.
-      allow read: if isOwner(citizenId) || request.query.keys().hasOnly(['smartCardNumber']);
+      // This rule is key:
+      // 1. Authenticated users can read their own document.
+      // 2. Unauthenticated users can perform a query on the collection ONLY if that query is filtering by 'smartCardNumber'.
+      // This is required for the login page to check if a card exists.
+      allow read: if isOwner(citizenId) || (request.auth == null && request.query.keys().hasOnly(['smartCardNumber']));
 
       // Allow authenticated users to update their own document.
       allow update: if isOwner(citizenId);

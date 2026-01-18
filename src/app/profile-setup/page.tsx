@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, updateDoc, collection, query, where } from 'firebase/firestore';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -27,8 +27,26 @@ export default function ProfileSetupPage() {
   const router = useRouter();
   const { toast } = useToast();
   
-  const citizenDocRef = user ? doc(firestore, 'citizens', user.uid) : null;
-  const { data: citizen, isLoading: isCitizenLoading } = useDoc(citizenDocRef);
+  const [smartCardNumber, setSmartCardNumber] = useState<string | null>(null);
+
+  // On the client, retrieve the smart card number from localStorage.
+  useEffect(() => {
+    const storedCardNumber = localStorage.getItem('loggedInSmartCardNumber');
+    if (storedCardNumber) {
+      setSmartCardNumber(storedCardNumber);
+    } else if (!isUserLoading && !user) {
+      router.replace('/login');
+    }
+  }, [isUserLoading, user, router]);
+
+  const citizenQuery = useMemoFirebase(() => {
+    if (!firestore || !smartCardNumber) return null;
+    return query(collection(firestore, 'citizens'), where('smartCardNumber', '==', smartCardNumber));
+  }, [firestore, smartCardNumber]);
+
+  const { data: citizenData, isLoading: isCitizenLoading } = useCollection(citizenQuery);
+  const citizen = (citizenData && citizenData.length > 0) ? citizenData[0] : null;
+
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -54,10 +72,11 @@ export default function ProfileSetupPage() {
 
 
   const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
-    if (!user) return;
+    if (!citizen) return;
 
     try {
-      const citizenRef = doc(firestore, 'citizens', user.uid);
+      // We need the actual document ID to update it. `citizen.id` holds this.
+      const citizenRef = doc(firestore, 'citizens', citizen.id);
       await updateDoc(citizenRef, {
         name: data.name,
         profileCompleted: true,
