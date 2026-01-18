@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   signInAnonymously,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import GovernmentEmblem from '@/components/icons/government-emblem';
 import QrScanner from '@/components/auth/QrScanner';
-import { QrCode, X } from 'lucide-react';
+import { QrCode, X, Database } from 'lucide-react';
 
 
 export default function LoginPage() {
@@ -69,7 +69,7 @@ export default function LoginPage() {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Smart Card not registered.',
+          description: 'Smart Card not registered. You can use the "Seed Sample Data" button to add test users.',
         });
         setIsLoading(false);
         return;
@@ -134,6 +134,91 @@ export default function LoginPage() {
       description: 'Smart Card number scanned successfully.',
     });
   };
+
+  const handleSeedData = async () => {
+    setIsLoading(true);
+    try {
+        const citizen1 = {
+            cardType: "PHH",
+            fpsCode: "FPS045",
+            district: "Madurai",
+            registeredMobile: "9987654321",
+            profileCompleted: false,
+            familyMembers: [
+                { id: "M001", name: "Ramesh Kumar", age: 42, gender: "Male", relation: "Head" },
+                { id: "M002", name: "Lakshmi", age: 38, gender: "Female", relation: "Wife" },
+                { id: "M003", name: "Anitha", age: 15, gender: "Female", relation: "Daughter" }
+            ],
+            rationAllocation: {
+                rice: "15 Kg",
+                wheat: "3 Kg",
+                sugar: "2 Kg",
+                palmOil: "1 L",
+                toorDal: "1 Kg"
+            }
+        };
+
+        const citizen2 = {
+            cardType: "PHH",
+            fpsCode: "FPS112",
+            district: "Salem",
+            registeredMobile: "9988776654",
+            profileCompleted: true,
+            familyMembers: [
+                { id: "M001", name: "Murugan", age: 30, gender: "Male", relation: "Head" },
+                { id: "M002", name: "Meena", age: 28, gender: "Female", relation: "Wife" },
+            ],
+            rationAllocation: {
+                rice: "10 Kg",
+                wheat: "1 Kg",
+                sugar: "2 Kg",
+                palmOil: "1 L",
+                toorDal: "1 Kg"
+            }
+        };
+
+        const citizen3 = {
+            cardType: "PHH",
+            fpsCode: "FPS078",
+            district: "Coimbatore",
+            registeredMobile: "9988776654",
+            profileCompleted: true,
+            familyMembers: [
+                { id: "M001", name: "Kumar", age: 38, gender: "Male", relation: "Head" },
+                { id: "M002", name: "Vidhya", age: 36, gender: "Female", relation: "Wife" },
+                { id: "M003", name: "Rahul", age: 12, gender: "Male", relation: "Son" },
+                { id: "M004", name: "Priya", age: 10, gender: "Female", relation: "Daughter" },
+            ],
+            rationAllocation: {
+                rice: "25 Kg",
+                wheat: "1 Kg",
+                sugar: "2 Kg",
+                palmOil: "1 L",
+                toorDal: "1 Kg"
+            }
+        };
+        
+        await setDoc(doc(firestore, "citizens", "TN-PDS-01458921"), citizen1);
+        await setDoc(doc(firestore, "citizens", "TN-PDS-02-783456"), citizen2);
+        await setDoc(doc(firestore, "citizens", "TN-PDS-03-996214"), citizen3);
+
+        toast({
+            title: "Database Seeded!",
+            description: "Sample citizen data has been added to Firestore.",
+        });
+
+    } catch (error: any) {
+        console.error("Error seeding database:", error);
+        toast({
+            variant: "destructive",
+            title: "Database Seeding Failed",
+            description: error.message || "Could not add sample data. Check Firestore rules and configuration.",
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
 
   if (isUserLoading) {
     return (
@@ -224,6 +309,18 @@ export default function LoginPage() {
               </Button>
             </form>
           <div id="recaptcha-container" className="mt-4"></div>
+            <div className="mt-6 border-t pt-4">
+              <p className="text-sm text-center text-muted-foreground mb-2">For testing purposes:</p>
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={handleSeedData}
+                disabled={isLoading}
+              >
+                <Database className="mr-2 h-4 w-4" />
+                Seed Sample Data
+              </Button>
+            </div>
         </CardContent>
       </Card>
     </div>
