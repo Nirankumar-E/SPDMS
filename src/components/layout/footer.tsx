@@ -1,20 +1,24 @@
 import Link from 'next/link';
 import { Facebook, Twitter, Youtube, Mail, Phone } from 'lucide-react';
 import { footerLinks } from '@/lib/data';
-import GovernmentEmblem from '../icons/government-emblem';
+import type { FooterTranslations } from '@/lib/i18n';
 
-const Footer = () => {
+interface FooterProps {
+  i18n: FooterTranslations;
+}
+
+const Footer = ({ i18n }: FooterProps) => {
   return (
     <footer className="bg-gray-800 text-white pt-10 pb-6">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           {/* Column 1: Acts & Policies */}
           <div>
-            <h4 className="text-lg font-bold mb-4 font-headline">சட்டங்கள் மற்றும் கொள்கைகள்</h4>
+            <h4 className="text-lg font-bold mb-4 font-headline">{i18n.actsAndPolicies.title}</h4>
             <ul className="space-y-2">
               {footerLinks.actsAndPolicies.map((link) => (
-                <li key={link.name}>
-                  <Link href={link.href}><div className="text-sm text-gray-300 hover:text-white transition-colors">{link.name}</div></Link>
+                <li key={link.key}>
+                  <Link href={link.href}><div className="text-sm text-gray-300 hover:text-white transition-colors">{i18n.actsAndPolicies.links[link.key as keyof typeof i18n.actsAndPolicies.links]}</div></Link>
                 </li>
               ))}
             </ul>
@@ -22,11 +26,11 @@ const Footer = () => {
 
           {/* Column 2: Quick Links */}
           <div>
-            <h4 className="text-lg font-bold mb-4 font-headline">விரைவு இணைப்புகள்</h4>
+            <h4 className="text-lg font-bold mb-4 font-headline">{i18n.quickLinks.title}</h4>
             <ul className="space-y-2">
               {footerLinks.quickLinks.map((link) => (
-                <li key={link.name}>
-                  <Link href={link.href}><div className="text-sm text-gray-300 hover:text-white transition-colors">{link.name}</div></Link>
+                <li key={link.key}>
+                  <Link href={link.href}><div className="text-sm text-gray-300 hover:text-white transition-colors">{i18n.quickLinks.links[link.key as keyof typeof i18n.quickLinks.links]}</div></Link>
                 </li>
               ))}
             </ul>
@@ -34,11 +38,11 @@ const Footer = () => {
 
           {/* Column 3: Related Departments */}
           <div>
-            <h4 className="text-lg font-bold mb-4 font-headline">தொடர்புடைய துறைகள்</h4>
+            <h4 className="text-lg font-bold mb-4 font-headline">{i18n.relatedDepartments.title}</h4>
             <ul className="space-y-2">
               {footerLinks.relatedDepartments.map((link) => (
-                <li key={link.name}>
-                  <Link href={link.href}><div className="text-sm text-gray-300 hover:text-white transition-colors">{link.name}</div></Link>
+                <li key={link.key}>
+                  <Link href={link.href}><div className="text-sm text-gray-300 hover:text-white transition-colors">{i18n.relatedDepartments.links[link.key as keyof typeof i18n.relatedDepartments.links]}</div></Link>
                 </li>
               ))}
             </ul>
@@ -46,7 +50,7 @@ const Footer = () => {
 
           {/* Column 4: Contact Details */}
           <div>
-            <h4 className="text-lg font-bold mb-4 font-headline">தொடர்பு விவரங்கள்</h4>
+            <h4 className="text-lg font-bold mb-4 font-headline">{i18n.contact.title}</h4>
             <ul className="space-y-3">
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-gray-400" />
@@ -66,7 +70,7 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-gray-700 pt-6 mt-8 flex flex-col md:flex-row justify-between items-center text-center md:text-left">
-          <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} TN-PDS Portal. All Rights Reserved.</p>
+          <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} {i18n.copyright}</p>
         </div>
       </div>
     </footer>

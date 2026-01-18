@@ -1,7 +1,12 @@
 import { Phone } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/whatsapp-icon';
+import type { HelplineTranslations } from '@/lib/i18n';
 
-const HelplineBar = () => {
+interface HelplineBarProps {
+  i18n: HelplineTranslations;
+}
+
+const HelplineBar = ({ i18n }: HelplineBarProps) => {
   return (
     <section className="bg-primary/90 text-primary-foreground py-4 mt-8">
       <div className="container mx-auto px-4 text-center">

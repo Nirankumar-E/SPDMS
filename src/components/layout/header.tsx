@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import type { Language, HeaderTranslations } from '@/lib/i18n';
 import { Button } from "@/components/ui/button";
 import GovernmentEmblem from '@/components/icons/government-emblem';
 import Link from 'next/link';
@@ -8,8 +8,13 @@ import { LogIn, User, LogOut } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
-const Header = () => {
-  const [language, setLanguage] = useState<'TA' | 'EN'>('TA');
+interface HeaderProps {
+  language: Language;
+  onLanguageChange: (lang: Language) => void;
+  i18n: HeaderTranslations;
+}
+
+const Header = ({ language, onLanguageChange, i18n }: HeaderProps) => {
   const { user, loading } = useUser();
   const auth = useAuth();
   const router = useRouter();
@@ -27,14 +32,14 @@ const Header = () => {
       <div className="bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center text-center sm:text-left py-1 gap-1 sm:gap-0">
           <div className="text-xs">
-            <span>Helpline: </span>
+            <span>{i18n.helpline}: </span>
             <a href="tel:1967" className="hover:underline">1967</a> | <a href="tel:18004255901" className="hover:underline">1800-425-5901</a>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('TA')}>தமிழ்</Button>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => onLanguageChange('TA')}>தமிழ்</Button>
                 <span className="text-sm">|</span>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => setLanguage('EN')}>English</Button>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80" onClick={() => onLanguageChange('EN')}>English</Button>
             </div>
              <div className="border-l border-primary-foreground/50 h-6"></div>
              {loading ? (
@@ -43,18 +48,18 @@ const Header = () => {
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1" asChild>
                   <Link href="/dashboard">
-                    <User className="h-4 w-4" /> My Profile
+                    <User className="h-4 w-4" /> {i18n.myProfile}
                   </Link>
                 </Button>
                 <span className="text-sm">|</span>
                 <Button variant="ghost" size="sm" onClick={handleLogout} className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1">
-                  <LogOut className="h-4 w-4" /> Logout
+                  <LogOut className="h-4 w-4" /> {i18n.logout}
                 </Button>
               </div>
             ) : (
               <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/80 flex items-center gap-1" asChild>
                 <Link href="/login">
-                  <LogIn className="h-4 w-4" /> Citizen Login
+                  <LogIn className="h-4 w-4" /> {i18n.citizenLogin}
                 </Link>
               </Button>
             )}
@@ -68,10 +73,10 @@ const Header = () => {
           <GovernmentEmblem className="h-12 w-12 md:h-16 md:w-16" />
           <div>
             <h1 className="text-lg sm:text-xl md:text-3xl font-bold text-primary font-headline">
-              {language === 'TA' ? 'பொது விநியோகத் திட்டம்' : 'Public Distribution System'}
+              {i18n.title}
             </h1>
             <p className="text-xs sm:text-sm md:text-base text-gray-600">
-              {language === 'TA' ? 'தமிழ்நாடு அரசு' : 'Government of Tamil Nadu'}
+              {i18n.subtitle}
             </p>
           </div>
         </div>
