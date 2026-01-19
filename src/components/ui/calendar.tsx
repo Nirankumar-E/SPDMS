@@ -34,7 +34,7 @@ function Calendar({
         table: "w-full border-collapse space-y-1",
         head_row: "grid grid-cols-7",
         head_cell:
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+          "text-muted-foreground rounded-md font-normal text-[0.8rem]",
         row: "grid grid-cols-7 w-full mt-2",
         cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day: cn(
@@ -51,8 +51,10 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
-      iconLeft={<ChevronLeft className="h-4 w-4" />}
-      iconRight={<ChevronRight className="h-4 w-4" />}
+      components={{
+        icon_previous: () => <ChevronLeft className="h-4 w-4" />,
+        icon_next: () => <ChevronRight className="h-4 w-4" />,
+      }}
       {...props}
     />
   )
