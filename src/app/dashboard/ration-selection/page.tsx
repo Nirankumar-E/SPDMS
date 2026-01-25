@@ -122,7 +122,7 @@ export default function RationSelectionPage() {
                   control={form.control}
                   name="date"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem>
                       <FormLabel>Choose Collection Date</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
