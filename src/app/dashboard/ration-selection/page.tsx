@@ -122,7 +122,7 @@ export default function RationSelectionPage() {
                   control={form.control}
                   name="date"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>Choose Collection Date</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
@@ -130,16 +130,16 @@ export default function RationSelectionPage() {
                             <Button
                               variant={'outline'}
                               className={cn(
-                                'w-full pl-3 text-left font-normal',
+                                'w-full justify-start pl-3 text-left font-normal',
                                 !field.value && 'text-muted-foreground'
                               )}
                             >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
                               {field.value ? (
                                 format(field.value, 'PPP')
                               ) : (
                                 <span>Pick a date</span>
                               )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -149,7 +149,7 @@ export default function RationSelectionPage() {
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) =>
-                              date < new Date() || date < new Date('1900-01-01')
+                              date < new Date(new Date().setHours(0,0,0,0))
                             }
                             initialFocus
                           />
@@ -165,7 +165,7 @@ export default function RationSelectionPage() {
                   control={form.control}
                   name="timeSlot"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>Choose Collection Slot</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
