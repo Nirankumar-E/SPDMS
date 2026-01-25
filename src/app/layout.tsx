@@ -5,7 +5,7 @@ import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'TN-PDS Portal',
-  description: 'A replica of the Tamil Nadu Public Distribution System portal.',
+  description: 'Tamil Nadu Public Distribution System portal.',
 };
 
 export default function RootLayout({
