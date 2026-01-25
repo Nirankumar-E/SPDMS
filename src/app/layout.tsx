@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'TN-PDS Portal Replica',
+  title: 'TN-PDS Portal',
   description: 'A replica of the Tamil Nadu Public Distribution System portal.',
 };
 
