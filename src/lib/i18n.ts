@@ -14,7 +14,6 @@ export interface HeaderTranslations {
 }
 
 export interface LeftSidebarTranslations {
-  nfsaServices: string;
   nfsaForms: string;
   tnpdsServices: string;
   fpsServices: string;
@@ -132,7 +131,6 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'தமிழ்நாடு அரசு',
     },
     leftSidebar: {
-      nfsaServices: 'NFSA சேவைகள்',
       nfsaForms: 'NFSA தொடர்பான படிவங்கள்',
       tnpdsServices: 'TN-PDS சேவைகள்',
       fpsServices: 'நியாய விலைக் கடை சேவைகள்',
@@ -234,7 +232,6 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'Government of Tamil Nadu',
     },
     leftSidebar: {
-      nfsaServices: 'NFSA Services',
       nfsaForms: 'NFSA Related Forms',
       tnpdsServices: 'TN-PDS Services',
       fpsServices: 'Fair Price Shop Services',
