@@ -1,7 +1,6 @@
 import { FileText, Users, Building, FileSearch, ShoppingCart, Microscope, User, FilePlus, Milestone, HelpCircle, UserPlus, MapPin, Repeat, Home, LogIn, Clock } from 'lucide-react';
 
 export const leftSidebarServices = [
-  { key: 'tnpdsServices', icon: Building, href: '#' },
   { key: 'fpsServices', icon: ShoppingCart, href: '#' },
   { key: 'inspection', icon: Microscope, href: '#' },
   { key: 'rationSelection', icon: ShoppingCart, href: '/dashboard/ration-selection' },
