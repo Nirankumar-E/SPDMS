@@ -40,7 +40,7 @@ export default function LoginPage() {
       // If a user session exists, try to get the smart card number from local storage
       const storedCardNumber = localStorage.getItem('loggedInSmartCardNumber');
       if(storedCardNumber) {
-        router.push('/dashboard');
+        router.push('/');
       }
       // If no card number, they need to log in properly.
       // The session might be from a previous incomplete login.
