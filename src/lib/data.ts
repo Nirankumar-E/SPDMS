@@ -1,7 +1,6 @@
 import { FileText, Users, Building, FileSearch, ShoppingCart, Microscope, User, FilePlus, Milestone, HelpCircle, UserPlus, MapPin, Repeat, Home, LogIn, Clock } from 'lucide-react';
 
 export const leftSidebarServices = [
-  { key: 'beneficiaryServices', icon: User, href: '#' },
   { key: 'familyCardServices', icon: Users, href: '#' },
   { key: 'nfsaServices', icon: FileText, href: '#' },
   { key: 'nfsaForms', icon: FilePlus, href: '#' },

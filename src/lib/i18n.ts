@@ -14,7 +14,6 @@ export interface HeaderTranslations {
 }
 
 export interface LeftSidebarTranslations {
-  beneficiaryServices: string;
   familyCardServices: string;
   nfsaServices: string;
   nfsaForms: string;
@@ -134,7 +133,6 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'தமிழ்நாடு அரசு',
     },
     leftSidebar: {
-      beneficiaryServices: 'பயனாளி சேவைகள்',
       familyCardServices: 'குடும்ப அட்டை சேவைகள்',
       nfsaServices: 'NFSA சேவைகள்',
       nfsaForms: 'NFSA தொடர்பான படிவங்கள்',
@@ -238,7 +236,6 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'Government of Tamil Nadu',
     },
     leftSidebar: {
-      beneficiaryServices: 'Beneficiary Services',
       familyCardServices: 'Family Card Services',
       nfsaServices: 'NFSA Services',
       nfsaForms: 'NFSA Related Forms',
