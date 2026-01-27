@@ -47,19 +47,6 @@ const MainContent = ({ i18n }: MainContentProps) => {
           </Link>
         </Card>
 
-        {user && (
-           <Card className="bg-green-600 text-white p-6 text-center shadow-lg hover:bg-green-700 transition-colors">
-            <Link href="/dashboard/ration-selection">
-              <div className="flex items-center justify-center gap-2">
-                <ShoppingCart className="h-6 w-6" />
-                <Clock className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-bold mt-2">{i18n.rationSelection.title}</h3>
-              <p className="text-sm mt-1">{i18n.rationSelection.description}</p>
-            </Link>
-          </Card>
-        )}
-
         <Card className="bg-blue-600 text-white p-6 text-center shadow-lg hover:bg-blue-700 transition-colors">
           <Link href="#">
             <h3 className="text-xl font-bold">{i18n.cardStatus.title}</h3>
