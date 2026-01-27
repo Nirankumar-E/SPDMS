@@ -14,7 +14,6 @@ export interface HeaderTranslations {
 }
 
 export interface LeftSidebarTranslations {
-  fpsServices: string;
   inspection: string;
   rationSelection: string;
 }
@@ -129,7 +128,6 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'தமிழ்நாடு அரசு',
     },
     leftSidebar: {
-      fpsServices: 'நியாய விலைக் கடை சேவைகள்',
       inspection: 'ஆய்வு மற்றும் கண்காணிப்பு',
       rationSelection: 'ரேஷன் தேர்வு',
     },
@@ -228,7 +226,6 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'Government of Tamil Nadu',
     },
     leftSidebar: {
-      fpsServices: 'Fair Price Shop Services',
       inspection: 'Inspection & Monitoring',
       rationSelection: 'Ration Selection',
     },
