@@ -112,7 +112,7 @@ export default function LoginPage() {
       await signInAnonymously(auth);
 
       toast({ title: 'Success', description: 'Logged in successfully!' });
-      router.push('/');
+      router.push('/dashboard');
       
     } catch (error: any) {
       console.error('Error during login:', error);
