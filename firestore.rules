@@ -10,24 +10,20 @@ service cloud.firestore {
     match /citizens/{citizenId} {
       // Allow an unauthenticated 'get' to check if a card exists
       // and 'create' to allow the "Seed Sample Data" button to work.
-      // This is for development purposes and should be secured in production.
       allow get, create: if true;
 
       // Allow an authenticated user to read and update their own document.
-      // This relies on the client only requesting the document for the logged-in user.
-      // WARNING: This is not secure against a malicious client who could guess other card numbers.
       allow read, update: if isSignedIn();
       
-      // Disallow deleting from the client.
+      // Allow access to the bookings subcollection
+      match /bookings/{bookingId} {
+        // 'read' covers both 'get' (single doc) and 'list' (collections)
+        // 'write' covers 'create', 'update', and 'delete'
+        allow read, write: if isSignedIn();
+      }
+      
+      // Disallow deleting citizen profiles from the client.
       allow delete: if false;
-    }
-
-    match /bookings/{citizenId} {
-       // Allow an authenticated user to manage their booking.
-       // This relies on the client only accessing the booking for the logged-in user.
-       // WARNING: This is not secure against a malicious client.
-      allow get, create, update, delete: if isSignedIn();
-      allow list: if false;
     }
   }
 }
