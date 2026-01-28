@@ -14,6 +14,10 @@ export interface HeaderTranslations {
 }
 
 export interface LeftSidebarTranslations {
+  complaintTitle: string;
+  complaintPlaceholder: string;
+  complaintSubmit: string;
+  complaintSuccess: string;
 }
 
 export interface MainContentTranslations {
@@ -122,6 +126,10 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'தமிழ்நாடு அரசு',
     },
     leftSidebar: {
+      complaintTitle: 'புகார் பெட்டி',
+      complaintPlaceholder: 'ரேஷன் கடைகளில் நீங்கள் எதிர்கொள்ளும் சிரமங்களை இங்கே விவரிக்கவும்...',
+      complaintSubmit: 'சமர்ப்பி',
+      complaintSuccess: 'உங்கள் புகார் வெற்றிகரமாக சமர்ப்பிக்கப்பட்டது.',
     },
     mainContent: {
       title: 'செயல்படுத்தல் நிலைமை',
@@ -214,6 +222,10 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'Government of Tamil Nadu',
     },
     leftSidebar: {
+      complaintTitle: 'Complaint Box',
+      complaintPlaceholder: 'Describe inconveniences faced at ration shops...',
+      complaintSubmit: 'Submit',
+      complaintSuccess: 'Your complaint has been submitted successfully.',
     },
     mainContent: {
       title: 'Implementation Status',
