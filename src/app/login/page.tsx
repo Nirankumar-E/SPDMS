@@ -1,11 +1,10 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  signInAnonymously,
-} from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { signInAnonymously } from 'firebase/auth';
+import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import GovernmentEmblem from '@/components/icons/government-emblem';
 import QrScanner from '@/components/auth/QrScanner';
-import { QrCode, X } from 'lucide-react';
+import { QrCode, X, Database } from 'lucide-react';
 import { useLanguage } from '@/lib/language-context';
 import Header from '@/components/layout/header';
 
@@ -42,23 +41,88 @@ export default function LoginPage() {
     if (!isUserLoading && user) {
       const storedCardNumber = localStorage.getItem('loggedInSmartCardNumber');
       if(storedCardNumber) {
-        router.push('/');
+        router.push('/dashboard');
       }
     }
   }, [user, isUserLoading, router]);
 
-  
+  const handleSeedData = async () => {
+    setIsLoading(true);
+    const sampleId = "TN-PDS-SAMPLE-123";
+    try {
+      const citizenRef = doc(firestore, 'citizens', sampleId);
+      await setDoc(citizenRef, {
+        name: "Muthu Kumar",
+        cardType: "PHH",
+        fpsCode: "FPS-CHE-001",
+        district: "Chennai",
+        registeredMobile: "9876543210",
+        profileCompleted: true,
+        familyMembers: [
+          { id: "1", name: "Muthu Kumar", age: 45, gender: "Male", relation: "Head" },
+          { id: "2", name: "Saraswathi", age: 40, gender: "Female", relation: "Wife" },
+          { id: "3", name: "Karthik", age: 18, gender: "Male", relation: "Son" }
+        ],
+        rationAllocation: {
+          rawRice: "10 Kg",
+          boiledRice: "10 Kg",
+          wheat: "5 Kg",
+          sugar: "2 Kg",
+          palmOil: "1 L",
+          toorDal: "1 Kg"
+        }
+      });
+
+      // Add a prototype booking
+      const bookingsRef = collection(firestore, 'citizens', sampleId, 'bookings');
+      await addDoc(bookingsRef, {
+        date: "2024-11-20",
+        timeSlot: "10:00 AM - 11:00 AM",
+        status: "Booked",
+        items: [
+          { name: "rawRice", quantity: 10, unit: "Kg" },
+          { name: "boiledRice", quantity: 10, unit: "Kg" },
+          { name: "sugar", quantity: 2, unit: "Kg" }
+        ],
+        paymentMethod: "cash",
+        totalAmount: 50,
+        qrData: JSON.stringify({
+          cardId: sampleId,
+          date: "2024-11-20",
+          slot: "10:00 AM - 11:00 AM",
+          items: [{ name: "rawRice", quantity: 10 }, { name: "boiledRice", quantity: 10 }],
+          total: 50,
+          payment: "cash"
+        }),
+        createdAt: serverTimestamp()
+      });
+
+      setSmartCardNumber(sampleId);
+      setIsOtpSent(true);
+      toast({
+        title: "Prototype Data Seeded",
+        description: "Sample card TN-PDS-SAMPLE-123 created. Use any 6 digits for OTP.",
+      });
+    } catch (error: any) {
+      console.error('Seeding error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Seeding Failed',
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSendOtp = async () => {
     const trimmedSmartCardNumber = smartCardNumber.trim();
-    if (!trimmedSmartCardNumber) {
-      return;
-    }
+    if (!trimmedSmartCardNumber) return;
     setIsLoading(true);
 
     try {
       const citizenRef = doc(firestore, 'citizens', trimmedSmartCardNumber);
       const docSnap = await getDoc(citizenRef);
-
 
       if (!docSnap.exists()) {
         toast({
@@ -69,7 +133,6 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
-
       setIsOtpSent(true);
     } catch (error: any) {
       console.error('Error checking Smart Card:', error);
@@ -84,15 +147,13 @@ export default function LoginPage() {
   };
 
   const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 6) {
-      return;
-    }
+    if (!otp || otp.length !== 6) return;
     setIsLoading(true);
     try {
       const trimmedSmartCardNumber = smartCardNumber.trim();
       localStorage.setItem('loggedInSmartCardNumber', trimmedSmartCardNumber);
       await signInAnonymously(auth);
-      router.push('/');
+      router.push('/dashboard');
     } catch (error: any) {
       console.error('Error during login:', error);
       toast({
@@ -117,7 +178,7 @@ export default function LoginPage() {
   if (isUserLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        Loading...
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -125,8 +186,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
-      <div className="flex flex-col items-center justify-center p-4 mt-12">
-        <Card className="w-full max-w-md shadow-lg">
+      <div className="flex flex-col items-center justify-center p-4 mt-8">
+        <Card className="w-full max-w-md shadow-lg border-t-4 border-primary">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <GovernmentEmblem className="h-20 w-20" />
@@ -157,11 +218,13 @@ export default function LoginPage() {
                       onChange={(e) => setSmartCardNumber(e.target.value)}
                       disabled={isOtpSent || isLoading}
                       required
+                      className="h-12"
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
+                      className="h-12 w-12"
                       onClick={() => setScannerOpen(!isScannerOpen)}
                       disabled={isLoading}
                     >
@@ -187,21 +250,38 @@ export default function LoginPage() {
                       placeholder={loginI18n.otpPlaceholder}
                       value={otp}
                       onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="h-12 text-center text-2xl tracking-widest font-bold"
                       required
                     />
                   </div>
                 )}
-                <Button
-                  type="submit"
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={isLoading}
-                >
-                  {isLoading
-                    ? loginI18n.processing
-                    : isOtpSent
-                    ? loginI18n.loginButton
-                    : loginI18n.verifyButton}
-                </Button>
+                
+                <div className="pt-2 space-y-3">
+                  <Button
+                    type="submit"
+                    className="w-full h-12 text-lg bg-primary hover:bg-primary/90"
+                    disabled={isLoading}
+                  >
+                    {isLoading
+                      ? loginI18n.processing
+                      : isOtpSent
+                      ? loginI18n.loginButton
+                      : loginI18n.verifyButton}
+                  </Button>
+
+                  {!isOtpSent && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-10 border-dashed text-muted-foreground hover:text-primary"
+                      onClick={handleSeedData}
+                      disabled={isLoading}
+                    >
+                      <Database className="h-4 w-4 mr-2" />
+                      Seed Prototype Data
+                    </Button>
+                  )}
+                </div>
               </form>
           </CardContent>
         </Card>

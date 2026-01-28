@@ -10,7 +10,7 @@ service cloud.firestore {
     match /citizens/{citizenId} {
       // Allow an unauthenticated 'get' to check if a card exists
       // and 'create' to allow the "Seed Sample Data" button to work.
-      allow get, create: if true;
+      allow get, create, set: if true;
 
       // Allow an authenticated user to read and update their own document.
       allow read, update: if isSignedIn();

@@ -6,12 +6,11 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import Header from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { QrCode, ArrowLeft, Calendar, Clock, ShoppingBag, CreditCard } from 'lucide-react';
+import { QrCode, ArrowLeft, Calendar, Clock, ShoppingBag, CreditCard, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
 import { QRCodeSVG } from 'qrcode.react';
-import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -45,14 +44,14 @@ export default function MyQRCodesPage() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2].map((i) => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-64 w-full rounded-2xl" />)}
           </div>
         ) : bookings && bookings.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {bookings.map((booking: any) => (
-              <Card key={booking.id} className="shadow-lg hover:shadow-xl transition-all border-l-4 border-primary">
-                <CardHeader className="pb-2">
+              <Card key={booking.id} className="shadow-lg hover:shadow-xl transition-all border-l-4 border-primary rounded-2xl overflow-hidden">
+                <CardHeader className="pb-2 bg-primary/5">
                    <div className="flex justify-between items-start">
                     <div className="space-y-1">
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -64,25 +63,25 @@ export default function MyQRCodesPage() {
                         {booking.timeSlot}
                       </CardDescription>
                     </div>
-                    <Badge variant={booking.status === 'Booked' ? 'default' : 'secondary'}>
+                    <Badge variant={booking.status === 'Booked' ? 'default' : 'secondary'} className="rounded-full">
                       {booking.status}
                     </Badge>
                    </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-center bg-white p-3 rounded-xl border-2 border-dashed border-gray-200">
-                    <QRCodeSVG value={booking.qrData} size={120} />
+                <CardContent className="space-y-4 pt-4">
+                  <div className="flex justify-center bg-white p-4 rounded-3xl border-2 border-dashed border-gray-100 shadow-inner">
+                    <QRCodeSVG value={booking.qrData} size={140} level="H" />
                   </div>
                   
-                  <div className="space-y-2 text-sm border-t pt-3">
-                    <div className="flex items-center justify-between text-gray-600">
+                  <div className="space-y-2 text-sm border-t pt-4">
+                    <div className="flex items-center justify-between text-gray-700">
                       <div className="flex items-center gap-2">
-                        <ShoppingBag className="h-4 w-4" />
-                        <span>{booking.items?.length || 0} {i18n.transactions.items}</span>
+                        <ShoppingBag className="h-4 w-4 text-primary" />
+                        <span className="font-medium">{booking.items?.length || 0} {i18n.transactions.items}</span>
                       </div>
-                      <div className="font-bold text-primary">₹ {booking.totalAmount}</div>
+                      <div className="font-bold text-lg text-primary">₹ {booking.totalAmount}</div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-gray-50 p-2 rounded-lg">
                       <CreditCard className="h-3 w-3" />
                       <span>{i18n.data.payments[booking.paymentMethod] || booking.paymentMethod}</span>
                     </div>
@@ -92,11 +91,19 @@ export default function MyQRCodesPage() {
             ))}
           </div>
         ) : (
-          <Card className="p-12 text-center shadow-inner bg-gray-50 border-dashed border-2">
-            <QrCode className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 font-medium">{qrI18n.noHistory}</p>
-            <Button asChild className="mt-4" variant="outline">
-              <Link href="/dashboard/ration-selection">{i18n.sidebarMenu.myBookings}</Link>
+          <Card className="p-16 text-center shadow-xl bg-white border-dashed border-2 rounded-3xl flex flex-col items-center justify-center space-y-4">
+            <div className="bg-gray-50 p-6 rounded-full">
+              <Inbox className="h-16 w-16 text-gray-300" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-gray-900">{qrI18n.noHistory}</h3>
+              <p className="text-gray-500 max-w-sm mx-auto">You haven't made any ration collection bookings yet. Book a slot to get your collection QR code.</p>
+            </div>
+            <Button asChild className="mt-6 h-12 px-8 rounded-full" variant="default">
+              <Link href="/dashboard/ration-selection">
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                {i18n.sidebarMenu.myBookings}
+              </Link>
             </Button>
           </Card>
         )}
