@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useDashboard } from '../layout';
@@ -6,7 +5,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import Header from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { QrCode, ArrowLeft, Calendar, Clock, ShoppingBag, CreditCard, Inbox } from 'lucide-react';
+import { QrCode, ArrowLeft, Calendar, Clock, ShoppingBag, CreditCard, Inbox, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
