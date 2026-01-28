@@ -17,24 +17,27 @@ export default function TransactionsPage() {
 
   if (!citizen) return null;
 
-  // Mock transactions history
+  // Mock transactions history with total amounts
   const transactions = [
     { 
       id: "INV-2024-001", 
       date: "2024-10-15", 
       items: "Raw Rice (10kg), Boiled Rice (10kg), Wheat (5kg), Sugar (2kg)",
+      total: 60,
       status: "Collected"
     },
     { 
       id: "INV-2024-002", 
       date: "2024-09-12", 
       items: "Raw Rice (10kg), Boiled Rice (10kg), Palm Oil (1L), Toor Dal (1kg)",
+      total: 55,
       status: "Collected"
     },
     { 
       id: "INV-2024-003", 
       date: "2024-08-05", 
       items: "Raw Rice (10kg), Boiled Rice (10kg), Wheat (5kg), Sugar (2kg)",
+      total: 60,
       status: "Collected"
     }
   ];
@@ -68,6 +71,7 @@ export default function TransactionsPage() {
                     <TableHead className="w-[120px]">{transI18n.date}</TableHead>
                     <TableHead className="w-[150px]">{transI18n.invoiceNo}</TableHead>
                     <TableHead>{transI18n.items}</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">{transI18n.status}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -83,6 +87,9 @@ export default function TransactionsPage() {
                             {tx.items}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-primary whitespace-nowrap">
+                        ₹ {tx.total}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
