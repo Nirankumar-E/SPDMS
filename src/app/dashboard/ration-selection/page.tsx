@@ -105,7 +105,7 @@ export default function RationSelectionPage() {
       });
       setSelectedItems(initial);
     }
-  }, [normalizedAllocation]);
+  }, [normalizedAllocation, selectedItems]);
 
   const totalAmount = useMemo(() => {
     return Object.entries(selectedItems).reduce((acc, [key, val]) => {
@@ -114,7 +114,7 @@ export default function RationSelectionPage() {
       }
       return acc;
     }, 0);
-  }, [selectedItems]);
+  }, [selectedItems, prices]);
 
   const onSubmit = async (data: BookingFormValues) => {
     if (!citizen) return;
