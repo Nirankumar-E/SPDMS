@@ -81,17 +81,31 @@ export default function RationSelectionPage() {
     }
   });
 
-  // Initialize selected items once citizen data is available
+  // Normalize the allocation to ensure Rice is split into Raw and Boiled
+  const normalizedAllocation = useMemo(() => {
+    if (!citizen?.rationAllocation) return {};
+    const alloc = { ...citizen.rationAllocation };
+    if (alloc.rice) {
+      // Split the combined rice into two (typically 10kg each in TN-PDS for full cards)
+      const totalRice = parseInt(alloc.rice as string) || 20;
+      alloc.rawRice = `${Math.floor(totalRice/2)} Kg`;
+      alloc.boiledRice = `${Math.ceil(totalRice/2)} Kg`;
+      delete alloc.rice;
+    }
+    return alloc;
+  }, [citizen]);
+
+  // Initialize selected items once normalized allocation is ready
   useMemo(() => {
-    if (citizen && Object.keys(selectedItems).length === 0) {
+    if (Object.keys(normalizedAllocation).length > 0 && Object.keys(selectedItems).length === 0) {
       const initial: Record<string, any> = {};
-      Object.entries(citizen.rationAllocation).forEach(([key, val]) => {
+      Object.entries(normalizedAllocation).forEach(([key, val]) => {
         const qty = parseInt((val as string).split(' ')[0]) || 0;
         initial[key] = { enabled: true, quantity: qty };
       });
       setSelectedItems(initial);
     }
-  }, [citizen]);
+  }, [normalizedAllocation]);
 
   const totalAmount = useMemo(() => {
     return Object.entries(selectedItems).reduce((acc, [key, val]) => {
@@ -289,7 +303,7 @@ export default function RationSelectionPage() {
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                     <h3 className="font-bold text-lg border-b pb-2">{bookingI18n.allocationTitle}</h3>
                     <div className="grid grid-cols-1 gap-3">
-                      {Object.entries(citizen.rationAllocation).map(([key, val]) => {
+                      {Object.entries(normalizedAllocation).map(([key, val]) => {
                         const maxQty = parseInt((val as string).split(' ')[0]) || 0;
                         return (
                           <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border group hover:border-primary transition-colors">
@@ -314,7 +328,7 @@ export default function RationSelectionPage() {
                                   type="number"
                                   min={0}
                                   max={maxQty}
-                                  value={selectedItems[key]?.quantity}
+                                  value={selectedItems[key]?.quantity || 0}
                                   onChange={(e) => {
                                     const v = Math.min(maxQty, Math.max(0, parseInt(e.target.value) || 0));
                                     setSelectedItems(prev => ({ ...prev, [key]: { ...prev[key], quantity: v } }));
