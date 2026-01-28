@@ -36,7 +36,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -74,14 +74,6 @@ export default function RationSelectionPage() {
     palmOil: 25,
     toorDal: 30
   };
-
-  const currencyFormatter = useMemo(() => new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    currencyDisplay: 'symbol',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }), []);
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
@@ -360,7 +352,7 @@ export default function RationSelectionPage() {
                                 {prices[key] > 0 && (
                                   <div className="text-right w-20">
                                     <p className="text-xs text-muted-foreground">Price</p>
-                                    <p className="font-bold text-primary">{currencyFormatter.format(prices[key])}/Kg</p>
+                                    <p className="font-bold text-primary">{formatCurrency(prices[key])}/Kg</p>
                                   </div>
                                 )}
                             </div>
@@ -376,7 +368,7 @@ export default function RationSelectionPage() {
                     <div className="p-8 bg-primary rounded-3xl text-white shadow-xl flex items-center justify-between relative overflow-hidden">
                       <div className="relative z-10">
                         <p className="text-white/70 font-bold uppercase tracking-widest text-xs mb-1">{bookingI18n.form.total}</p>
-                        <h4 className="text-5xl font-bold">{currencyFormatter.format(totalAmount)}</h4>
+                        <h4 className="text-5xl font-bold">{formatCurrency(totalAmount)}</h4>
                       </div>
                       <CreditCard className="h-24 w-24 text-white/10 absolute -right-4 -bottom-4 transform rotate-12" />
                       <div className="text-right relative z-10">
