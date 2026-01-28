@@ -9,18 +9,20 @@ import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { useMemo } from 'react';
 
 export default function TransactionsPage() {
   const { citizen } = useDashboard();
   const { i18n } = useLanguage();
   const transI18n = i18n.transactions;
 
-  const currencyFormatter = new Intl.NumberFormat('en-IN', {
+  const currencyFormatter = useMemo(() => new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
+    currencyDisplay: 'symbol',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  });
+  }), []);
 
   if (!citizen) return null;
 

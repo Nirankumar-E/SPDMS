@@ -12,6 +12,7 @@ import { useLanguage } from '@/lib/language-context';
 import { QRCodeSVG } from 'qrcode.react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useMemo } from 'react';
 
 export default function MyQRCodesPage() {
   const { citizen } = useDashboard();
@@ -19,12 +20,13 @@ export default function MyQRCodesPage() {
   const { i18n } = useLanguage();
   const qrI18n = i18n.qrHistory;
 
-  const currencyFormatter = new Intl.NumberFormat('en-IN', {
+  const currencyFormatter = useMemo(() => new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
+    currencyDisplay: 'symbol',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  });
+  }), []);
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !citizen) return null;

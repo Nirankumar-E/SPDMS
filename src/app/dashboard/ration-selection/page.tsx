@@ -75,12 +75,13 @@ export default function RationSelectionPage() {
     toorDal: 30
   };
 
-  const currencyFormatter = new Intl.NumberFormat('en-IN', {
+  const currencyFormatter = useMemo(() => new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
+    currencyDisplay: 'symbol',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  });
+  }), []);
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
@@ -89,11 +90,9 @@ export default function RationSelectionPage() {
     }
   });
 
-  // Normalize the allocation to ensure Rice is split into Raw and Boiled
   const normalizedAllocation = useMemo(() => {
     if (!citizen?.rationAllocation) return {};
     const alloc = { ...citizen.rationAllocation };
-    // If the backend has a combined 'rice' field, split it.
     if (alloc.rice) {
       const totalRice = parseInt(alloc.rice as string) || 20;
       alloc.rawRice = `${Math.floor(totalRice/2)} Kg`;
@@ -103,7 +102,6 @@ export default function RationSelectionPage() {
     return alloc;
   }, [citizen]);
 
-  // Initialize selected items once normalized allocation is ready
   useMemo(() => {
     if (Object.keys(normalizedAllocation).length > 0 && Object.keys(selectedItems).length === 0) {
       const initial: Record<string, any> = {};
@@ -220,7 +218,6 @@ export default function RationSelectionPage() {
             </div>
           </CardHeader>
 
-          {/* Stepper Header */}
           <div className="flex bg-gray-50/50 border-b px-8 py-6 overflow-x-auto gap-4">
             {['appointment', 'items', 'payment', 'qr'].map((s, idx) => (
               <div key={s} className="flex items-center shrink-0">
@@ -361,7 +358,7 @@ export default function RationSelectionPage() {
                                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">Kg</span>
                                 </div>
                                 {prices[key] > 0 && (
-                                  <div className="text-right w-16">
+                                  <div className="text-right w-20">
                                     <p className="text-xs text-muted-foreground">Price</p>
                                     <p className="font-bold text-primary">{currencyFormatter.format(prices[key])}/Kg</p>
                                   </div>
@@ -460,7 +457,6 @@ export default function RationSelectionPage() {
                   </div>
                 )}
 
-                {/* Footer Buttons */}
                 {step !== 'qr' && (
                   <div className="flex items-center gap-6 pt-8">
                     {step !== 'appointment' && (
