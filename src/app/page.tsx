@@ -8,17 +8,16 @@ import RightSidebar from '@/components/layout/right-sidebar';
 import HelplineBar from '@/components/layout/helpline-bar';
 import MobileAppBanner from '@/components/layout/mobile-app-banner';
 import Footer from '@/components/layout/footer';
-import { translations, Language } from '@/lib/i18n';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
+import { useLanguage } from '@/lib/language-context';
 
 export default function Home() {
-  const [language, setLanguage] = useState<Language>('TA');
-  const i18n = translations[language];
+  const { i18n } = useLanguage();
   const { user, loading: isAuthLoading } = useUser();
   const firestore = useFirestore();
   const [smartCardNumber, setSmartCardNumber] = useState<string | null>(null);
@@ -41,36 +40,32 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground font-body">
-      <Header
-        language={language}
-        onLanguageChange={setLanguage}
-        i18n={i18n.header}
-      />
+      <Header />
       <main className="flex-grow container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <aside className="lg:col-span-2 order-2 lg:order-1">
+          <aside className="lg:col-span-3 order-2 lg:order-1">
             <LeftSidebar i18n={i18n.leftSidebar} />
           </aside>
           
-          <section className="lg:col-span-7 order-1 lg:order-2 space-y-6">
+          <section className="lg:col-span-6 order-1 lg:order-2 space-y-6">
             {isLoggedIn ? (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-primary font-headline">
-                  Welcome, {citizen.name}
+                  {i18n.homeLoggedIn.welcome}, {citizen.name}
                 </h2>
                 
                 {/* Ration Services Section */}
                 <Card className="shadow-lg border-l-4 border-green-600">
                   <CardHeader>
-                    <CardTitle className="text-xl">Ration Services</CardTitle>
+                    <CardTitle className="text-xl">{i18n.homeLoggedIn.rationServices.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-col gap-4">
-                      <p className="text-muted-foreground">Manage your ration collection and bookings.</p>
+                      <p className="text-muted-foreground">{i18n.homeLoggedIn.rationServices.description}</p>
                       <Button asChild className="w-full md:w-max bg-green-600 hover:bg-green-700">
                         <Link href="/dashboard/ration-selection">
                           <ShoppingCart className="h-5 w-5 mr-2" />
-                          Ration Selection & Time Slot Booking
+                          {i18n.homeLoggedIn.rationServices.button}
                         </Link>
                       </Button>
                     </div>
@@ -82,14 +77,16 @@ export default function Home() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <ShoppingCart className="h-5 w-5 text-primary" />
-                      Monthly Ration Allocation
+                      {i18n.homeLoggedIn.allocation.title}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                       {Object.entries(citizen.rationAllocation).map(([item, quantity]) => (
                         <div key={item} className="p-4 bg-gray-50 rounded-lg border flex flex-col items-center text-center">
-                          <p className="font-semibold capitalize text-sm text-gray-600">{item}</p>
+                          <p className="font-semibold capitalize text-sm text-gray-600">
+                            {i18n.data.items[item] || item}
+                          </p>
                           <p className="text-lg font-bold text-primary">{(quantity as string)}</p>
                         </div>
                       ))}

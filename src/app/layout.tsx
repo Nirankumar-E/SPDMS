@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase';
+import { LanguageProvider } from '@/lib/language-context';
 
 export const metadata: Metadata = {
   title: 'TN-PDS Portal',
@@ -22,7 +23,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
-          {children}
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
         </FirebaseClientProvider>
         <Toaster />
       </body>
