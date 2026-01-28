@@ -18,7 +18,7 @@ import { useLanguage } from '@/lib/language-context';
 
 export default function Home() {
   const { i18n } = useLanguage();
-  const { user, loading: isAuthLoading } = useUser();
+  const { user } = useUser();
   const firestore = useFirestore();
   const [smartCardNumber, setSmartCardNumber] = useState<string | null>(null);
 
@@ -34,9 +34,26 @@ export default function Home() {
     return doc(firestore, 'citizens', smartCardNumber);
   }, [firestore, smartCardNumber]);
 
-  const { data: citizen, isLoading: isCitizenLoading } = useDoc(citizenDocRef);
+  const { data: citizen } = useDoc(citizenDocRef);
 
   const isLoggedIn = !!user && !!citizen;
+
+  // Helper to normalize ration items and ensure Rice is split into Raw and Boiled
+  const getAllocationItems = () => {
+    if (!citizen?.rationAllocation) return [];
+    
+    const items: [string, string][] = [];
+    Object.entries(citizen.rationAllocation).forEach(([key, value]) => {
+      if (key === 'rice') {
+        // Explicitly split the combined rice into Raw and Boiled for the UI
+        items.push(['rawRice', '10 Kg']);
+        items.push(['boiledRice', '10 Kg']);
+      } else {
+        items.push([key, value as string]);
+      }
+    });
+    return items;
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground font-body">
@@ -82,12 +99,12 @@ export default function Home() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {Object.entries(citizen.rationAllocation).map(([item, quantity]) => (
+                      {getAllocationItems().map(([item, quantity]) => (
                         <div key={item} className="p-4 bg-gray-50 rounded-lg border flex flex-col items-center text-center">
                           <p className="font-semibold capitalize text-sm text-gray-600">
                             {i18n.data.items[item] || item}
                           </p>
-                          <p className="text-lg font-bold text-primary">{(quantity as string)}</p>
+                          <p className="text-lg font-bold text-primary">{quantity}</p>
                         </div>
                       ))}
                     </div>

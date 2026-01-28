@@ -81,6 +81,20 @@ export default function RationSelectionPage() {
     return <div>Loading...</div>;
   }
 
+  // Helper to normalize ration items and ensure Rice is split into Raw and Boiled
+  const getAllocationItems = () => {
+    const items: [string, string][] = [];
+    Object.entries(citizen.rationAllocation).forEach(([key, value]) => {
+      if (key === 'rice') {
+        items.push(['rawRice', '10 Kg']);
+        items.push(['boiledRice', '10 Kg']);
+      } else {
+        items.push([key, value as string]);
+      }
+    });
+    return items;
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
@@ -109,10 +123,10 @@ export default function RationSelectionPage() {
                 {bookingI18n.allocationTitle}
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {Object.entries(citizen.rationAllocation).map(([item, quantity]) => (
+                {getAllocationItems().map(([item, quantity]) => (
                   <div key={item} className="p-3 bg-gray-50 rounded-md border text-sm">
                     <p className="font-semibold capitalize">{i18n.data.items[item] || item}</p>
-                    <p>{quantity as string}</p>
+                    <p>{quantity}</p>
                   </div>
                 ))}
               </div>
