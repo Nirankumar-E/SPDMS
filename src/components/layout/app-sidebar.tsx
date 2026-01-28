@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 export default function AppSidebar() {
   const { user } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
   const { i18n } = useLanguage();
   const [smartCardNumber, setSmartCardNumber] = useState<string | null>(null);
@@ -41,9 +42,9 @@ export default function AppSidebar() {
   }, []);
 
   const citizenDocRef = useMemoFirebase(() => {
-    if (!smartCardNumber) return null;
-    return doc(useFirestore(), 'citizens', smartCardNumber);
-  }, [smartCardNumber]);
+    if (!smartCardNumber || !firestore) return null;
+    return doc(firestore, 'citizens', smartCardNumber);
+  }, [smartCardNumber, firestore]);
 
   const { data: citizen } = useDoc(citizenDocRef);
 
