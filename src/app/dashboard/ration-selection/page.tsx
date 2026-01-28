@@ -75,6 +75,13 @@ export default function RationSelectionPage() {
     toorDal: 30
   };
 
+  const currencyFormatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
@@ -139,7 +146,7 @@ export default function RationSelectionPage() {
       });
 
       const bookingsRef = collection(firestore, 'citizens', citizen.id, 'bookings');
-      await addDoc(bookingsRef, {
+      addDoc(bookingsRef, {
         date: format(data.date, 'yyyy-MM-dd'),
         timeSlot: data.timeSlot,
         status: 'Booked',
@@ -356,7 +363,7 @@ export default function RationSelectionPage() {
                                 {prices[key] > 0 && (
                                   <div className="text-right w-16">
                                     <p className="text-xs text-muted-foreground">Price</p>
-                                    <p className="font-bold text-primary">₹{prices[key]}/Kg</p>
+                                    <p className="font-bold text-primary">{currencyFormatter.format(prices[key])}/Kg</p>
                                   </div>
                                 )}
                             </div>
@@ -372,7 +379,7 @@ export default function RationSelectionPage() {
                     <div className="p-8 bg-primary rounded-3xl text-white shadow-xl flex items-center justify-between relative overflow-hidden">
                       <div className="relative z-10">
                         <p className="text-white/70 font-bold uppercase tracking-widest text-xs mb-1">{bookingI18n.form.total}</p>
-                        <h4 className="text-5xl font-bold">₹ {totalAmount}</h4>
+                        <h4 className="text-5xl font-bold">{currencyFormatter.format(totalAmount)}</h4>
                       </div>
                       <CreditCard className="h-24 w-24 text-white/10 absolute -right-4 -bottom-4 transform rotate-12" />
                       <div className="text-right relative z-10">

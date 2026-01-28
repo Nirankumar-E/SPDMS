@@ -15,6 +15,13 @@ export default function TransactionsPage() {
   const { i18n } = useLanguage();
   const transI18n = i18n.transactions;
 
+  const currencyFormatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+
   if (!citizen) return null;
 
   // Mock transactions history with total amounts
@@ -89,7 +96,7 @@ export default function TransactionsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-bold text-primary whitespace-nowrap">
-                        ₹ {tx.total}
+                        {currencyFormatter.format(tx.total)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
