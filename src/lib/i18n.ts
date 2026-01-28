@@ -63,7 +63,8 @@ export interface MainContentTranslations {
     taluks: string;
     shops: string;
     beneficiaries: string;
-    rice: string;
+    rawRice: string;
+    boiledRice: string;
     sugarKerosene: string;
   };
   complaint: {
@@ -278,7 +279,8 @@ export const translations: Record<Language, Translations> = {
         taluks: 'வட்டங்கள்',
         shops: 'நியாய விலைக் கடைகள்',
         beneficiaries: 'பயனாளிகள்',
-        rice: 'அரிசி விநியோகம் (மெ.டன்)',
+        rawRice: 'பச்சரிசி விநியோகம் (மெ.டன்)',
+        boiledRice: 'புழுங்கல் அரிசி விநியோகம் (மெ.டன்)',
         sugarKerosene: 'சர்க்கரை / மண்ணெண்ணெய்',
       },
       complaint: {
@@ -484,7 +486,8 @@ export const translations: Record<Language, Translations> = {
         taluks: 'Taluks',
         shops: 'Fair Price Shops',
         beneficiaries: 'Beneficiaries',
-        rice: 'Rice Distribution (MT)',
+        rawRice: 'Raw Rice Distribution (MT)',
+        boiledRice: 'Boiled Rice Distribution (MT)',
         sugarKerosene: 'Sugar / Kerosene',
       },
       complaint: {

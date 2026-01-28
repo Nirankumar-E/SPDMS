@@ -8,7 +8,8 @@ export const stats = [
   { key: 'taluks', value: 307, icon: Milestone },
   { key: 'shops', value: 35741, icon: Home },
   { key: 'beneficiaries', value: 68987453, icon: Users },
-  { key: 'rice', value: 315000, icon: FileSearch },
+  { key: 'rawRice', value: 165000, icon: FileSearch },
+  { key: 'boiledRice', value: 150000, icon: FileSearch },
   { key: 'sugarKerosene', value: 17800, icon: ShoppingCart },
 ];
 
