@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInAnonymously } from 'firebase/auth';
-import { doc, getDoc, useFirestore } from 'firebase/firestore';
-import { useAuth, useUser } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -39,7 +39,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (!isUserLoading && user) {
       const storedCardNumber = localStorage.getItem('loggedInSmartCardNumber');
-      if(storedCardNumber) {
+      if (storedCardNumber) {
         router.push('/dashboard');
       }
     }
@@ -82,7 +82,6 @@ export default function LoginPage() {
     try {
       const trimmedSmartCardNumber = smartCardNumber.trim();
       localStorage.setItem('loggedInSmartCardNumber', trimmedSmartCardNumber);
-      // Ensure we are signed in (handleVerifyOtp is usually called when logging in normally)
       if (!auth.currentUser) {
         await signInAnonymously(auth);
       }
@@ -133,76 +132,76 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  isOtpSent ? handleVerifyOtp() : handleSendOtp();
-                }}
-                className="space-y-4"
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="smartCardNumber">{loginI18n.cardLabel}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="smartCardNumber"
-                      type="text"
-                      placeholder={loginI18n.cardPlaceholder}
-                      value={smartCardNumber}
-                      onChange={(e) => setSmartCardNumber(e.target.value)}
-                      disabled={isOtpSent || isLoading}
-                      required
-                      className="h-12"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-12 w-12"
-                      onClick={() => setScannerOpen(!isScannerOpen)}
-                      disabled={isLoading}
-                    >
-                      {isScannerOpen ? <X className="h-5 w-5" /> : <QrCode className="h-5 w-5" />}
-                    </Button>
-                  </div>
-                </div>
-
-                {isScannerOpen && (
-                   <QrScanner
-                      onScanSuccess={handleQrScanSuccess}
-                      onClose={() => setScannerOpen(false)}
-                    />
-                )}
-
-                {isOtpSent && (
-                  <div className="space-y-2">
-                    <Label htmlFor="otp">{loginI18n.otpLabel}</Label>
-                    <Input
-                      id="otp"
-                      type="text"
-                      maxLength={6}
-                      placeholder={loginI18n.otpPlaceholder}
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="h-12 text-center text-2xl tracking-widest font-bold"
-                      required
-                    />
-                  </div>
-                )}
-                
-                <div className="pt-2 space-y-3">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                isOtpSent ? handleVerifyOtp() : handleSendOtp();
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="smartCardNumber">{loginI18n.cardLabel}</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="smartCardNumber"
+                    type="text"
+                    placeholder={loginI18n.cardPlaceholder}
+                    value={smartCardNumber}
+                    onChange={(e) => setSmartCardNumber(e.target.value)}
+                    disabled={isOtpSent || isLoading}
+                    required
+                    className="h-12"
+                  />
                   <Button
-                    type="submit"
-                    className="w-full h-12 text-lg bg-primary hover:bg-primary/90"
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12"
+                    onClick={() => setScannerOpen(!isScannerOpen)}
                     disabled={isLoading}
                   >
-                    {isLoading
-                      ? loginI18n.processing
-                      : isOtpSent
-                      ? loginI18n.loginButton
-                      : loginI18n.verifyButton}
+                    {isScannerOpen ? <X className="h-5 w-5" /> : <QrCode className="h-5 w-5" />}
                   </Button>
                 </div>
-              </form>
+              </div>
+
+              {isScannerOpen && (
+                <QrScanner
+                  onScanSuccess={handleQrScanSuccess}
+                  onClose={() => setScannerOpen(false)}
+                />
+              )}
+
+              {isOtpSent && (
+                <div className="space-y-2">
+                  <Label htmlFor="otp">{loginI18n.otpLabel}</Label>
+                  <Input
+                    id="otp"
+                    type="text"
+                    maxLength={6}
+                    placeholder={loginI18n.otpPlaceholder}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="h-12 text-center text-2xl tracking-widest font-bold"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="pt-2 space-y-3">
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-lg bg-primary hover:bg-primary/90"
+                  disabled={isLoading}
+                >
+                  {isLoading
+                    ? loginI18n.processing
+                    : isOtpSent
+                    ? loginI18n.loginButton
+                    : loginI18n.verifyButton}
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       </div>
