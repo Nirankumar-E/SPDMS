@@ -48,111 +48,117 @@ export default function LoginPage() {
 
   const handleSeedData = async () => {
     setIsLoading(true);
-    const batch = writeBatch(firestore);
     
-    const sampleCitizens = [
-      {
-        id: "TN-PDS-SAMPLE-123",
-        name: "Muthu Kumar",
-        cardType: "PHH",
-        fpsCode: "FPS-CHE-001",
-        district: "Chennai",
-        registeredMobile: "9876543210",
-        familyMembers: [
-          { id: "1", name: "Muthu Kumar", age: 45, gender: "Male", relation: "Head" },
-          { id: "2", name: "Saraswathi", age: 40, gender: "Female", relation: "Wife" },
-          { id: "3", name: "Karthik", age: 18, gender: "Male", relation: "Son" }
-        ],
-        rationAllocation: { rawRice: "10 Kg", boiledRice: "10 Kg", wheat: "5 Kg", sugar: "2 Kg", palmOil: "1 L", toorDal: "1 Kg" }
-      },
-      {
-        id: "TN-PDS-04-996215",
-        name: "Billu",
-        cardType: "PHH",
-        fpsCode: "FPS022",
-        district: "Chennai",
-        registeredMobile: "9517533214",
-        familyMembers: [
-          { id: "M001", name: "Billu", age: 25, gender: "Male", relation: "Head" },
-          { id: "M002", name: "Susi", age: 24, gender: "Female", relation: "Wife" }
-        ],
-        rationAllocation: { rawRice: "5 Kg", boiledRice: "5 Kg", wheat: "1 Kg", sugar: "2 Kg", palmOil: "1 L", toorDal: "1 Kg" }
-      },
-      {
-        id: "TN-PDS-05-996216",
-        name: "Deepak",
-        cardType: "NPHH",
-        fpsCode: "FPS013",
-        district: "Chengalpattu",
-        registeredMobile: "7531598745",
-        familyMembers: [
-          { id: "M001", name: "Deepak", age: 36, gender: "Male", relation: "Head" },
-          { id: "M002", name: "Sandhiya", age: 35, gender: "Female", relation: "Wife" },
-          { id: "M003", name: "Surya", age: 10, gender: "Male", relation: "Son" },
-          { id: "M004", name: "Ananya", age: 8, gender: "Female", relation: "Daughter" }
-        ],
-        rationAllocation: { rawRice: "7 Kg", boiledRice: "8 Kg", wheat: "0 Kg", sugar: "1 Kg", palmOil: "1 L", toorDal: "1 Kg" }
-      },
-      {
-        id: "TN-PDS-06-996217",
-        name: "dheeraj",
-        cardType: "PHH",
-        fpsCode: "FPS014",
-        district: "Chengalpattu",
-        registeredMobile: "7531598745",
-        familyMembers: [
-          { id: "M001", name: "dheeraj", age: 40, gender: "Male", relation: "Head" },
-          { id: "M002", name: "dhivyasri", age: 39, gender: "Female", relation: "Wife" },
-          { id: "M003", name: "Aadheek", age: 10, gender: "Male", relation: "Son" }
-        ],
-        rationAllocation: { rawRice: "7 Kg", boiledRice: "8 Kg", wheat: "1 Kg", sugar: "2 Kg", palmOil: "1 L", toorDal: "1 Kg" }
-      },
-      {
-        id: "TN-PDS-07-996218",
-        name: "Dwaraka Seenuvass",
-        cardType: "NPHH",
-        fpsCode: "FPS076",
-        district: "Chengalpattu",
-        registeredMobile: "9632587417",
-        familyMembers: [
-          { id: "M001", name: "Dwaraka Seenuvass", age: 36, gender: "Male", relation: "Head" },
-          { id: "M002", name: "Harini", age: 35, gender: "Female", relation: "Wife" },
-          { id: "M003", name: "Dwharika", age: 10, gender: "Female", relation: "Daughter" },
-          { id: "M004", name: "Dhruv", age: 8, gender: "Male", relation: "Son" }
-        ],
-        rationAllocation: { rawRice: "7 Kg", boiledRice: "8 Kg", wheat: "0 Kg", sugar: "1 Kg", palmOil: "1 L", toorDal: "1 Kg" }
-      },
-      {
-        id: "TN-PDS-08-996220",
-        name: "Silambaraselvan",
-        cardType: "PHH",
-        fpsCode: "FPS067",
-        district: "Madurai",
-        registeredMobile: "6541239870",
-        familyMembers: [
-          { id: "M001", name: "Silambaraselvan", age: 29, gender: "Male", relation: "Head" },
-          { id: "M002", name: "kiara", age: 29, gender: "Female", relation: "Wife" }
-        ],
-        rationAllocation: { rawRice: "5 Kg", boiledRice: "5 Kg", wheat: "1 Kg", sugar: "1 Kg", palmOil: "1 L", toorDal: "1 Kg" }
-      },
-      {
-        id: "TN-PDS-09-996220",
-        name: "Vikram",
-        cardType: "PHH",
-        fpsCode: "FPS035",
-        district: "Chennai",
-        registeredMobile: "9873216548",
-        familyMembers: [
-          { id: "M001", name: "Vikram", age: 38, gender: "Male", relation: "Head" },
-          { id: "M002", name: "Kumutha", age: 39, gender: "Female", relation: "Wife" },
-          { id: "M003", name: "Varsha", age: 10, gender: "Female", relation: "Daughter" },
-          { id: "M004", name: "Harsha", age: 10, gender: "Female", relation: "Daughter" }
-        ],
-        rationAllocation: { rawRice: "5 Kg", boiledRice: "5 Kg", wheat: "2 Kg", sugar: "2 Kg", palmOil: "1 L", toorDal: "1 Kg" }
-      }
-    ];
-
     try {
+      // Sign in anonymously first to satisfy security rules for the bookings subcollection
+      if (!auth.currentUser) {
+        await signInAnonymously(auth);
+      }
+
+      const batch = writeBatch(firestore);
+      
+      const sampleCitizens = [
+        {
+          id: "TN-PDS-SAMPLE-123",
+          name: "Muthu Kumar",
+          cardType: "PHH",
+          fpsCode: "FPS-CHE-001",
+          district: "Chennai",
+          registeredMobile: "9876543210",
+          familyMembers: [
+            { id: "1", name: "Muthu Kumar", age: 45, gender: "Male", relation: "Head" },
+            { id: "2", name: "Saraswathi", age: 40, gender: "Female", relation: "Wife" },
+            { id: "3", name: "Karthik", age: 18, gender: "Male", relation: "Son" }
+          ],
+          rationAllocation: { rawRice: "10 Kg", boiledRice: "10 Kg", wheat: "5 Kg", sugar: "2 Kg", palmOil: "1 L", toorDal: "1 Kg" }
+        },
+        {
+          id: "TN-PDS-04-996215",
+          name: "Billu",
+          cardType: "PHH",
+          fpsCode: "FPS022",
+          district: "Chennai",
+          registeredMobile: "9517533214",
+          familyMembers: [
+            { id: "M001", name: "Billu", age: 25, gender: "Male", relation: "Head" },
+            { id: "M002", name: "Susi", age: 24, gender: "Female", relation: "Wife" }
+          ],
+          rationAllocation: { rawRice: "5 Kg", boiledRice: "5 Kg", wheat: "1 Kg", sugar: "2 Kg", palmOil: "1 L", toorDal: "1 Kg" }
+        },
+        {
+          id: "TN-PDS-05-996216",
+          name: "Deepak",
+          cardType: "NPHH",
+          fpsCode: "FPS013",
+          district: "Chengalpattu",
+          registeredMobile: "7531598745",
+          familyMembers: [
+            { id: "M001", name: "Deepak", age: 36, gender: "Male", relation: "Head" },
+            { id: "M002", name: "Sandhiya", age: 35, gender: "Female", relation: "Wife" },
+            { id: "M003", name: "Surya", age: 10, gender: "Male", relation: "Son" },
+            { id: "M004", name: "Ananya", age: 8, gender: "Female", relation: "Daughter" }
+          ],
+          rationAllocation: { rawRice: "7 Kg", boiledRice: "8 Kg", wheat: "0 Kg", sugar: "1 Kg", palmOil: "1 L", toorDal: "1 Kg" }
+        },
+        {
+          id: "TN-PDS-06-996217",
+          name: "dheeraj",
+          cardType: "PHH",
+          fpsCode: "FPS014",
+          district: "Chengalpattu",
+          registeredMobile: "7531598745",
+          familyMembers: [
+            { id: "M001", name: "dheeraj", age: 40, gender: "Male", relation: "Head" },
+            { id: "M002", name: "dhivyasri", age: 39, gender: "Female", relation: "Wife" },
+            { id: "M003", name: "Aadheek", age: 10, gender: "Male", relation: "Son" }
+          ],
+          rationAllocation: { rawRice: "7 Kg", boiledRice: "8 Kg", wheat: "1 Kg", sugar: "2 Kg", palmOil: "1 L", toorDal: "1 Kg" }
+        },
+        {
+          id: "TN-PDS-07-996218",
+          name: "Dwaraka Seenuvass",
+          cardType: "NPHH",
+          fpsCode: "FPS076",
+          district: "Chengalpattu",
+          registeredMobile: "9632587417",
+          familyMembers: [
+            { id: "M001", name: "Dwaraka Seenuvass", age: 36, gender: "Male", relation: "Head" },
+            { id: "M002", name: "Harini", age: 35, gender: "Female", relation: "Wife" },
+            { id: "M003", name: "Dwharika", age: 10, gender: "Female", relation: "Daughter" },
+            { id: "M004", name: "Dhruv", age: 8, gender: "Male", relation: "Son" }
+          ],
+          rationAllocation: { rawRice: "7 Kg", boiledRice: "8 Kg", wheat: "0 Kg", sugar: "1 Kg", palmOil: "1 L", toorDal: "1 Kg" }
+        },
+        {
+          id: "TN-PDS-08-996220",
+          name: "Silambaraselvan",
+          cardType: "PHH",
+          fpsCode: "FPS067",
+          district: "Madurai",
+          registeredMobile: "6541239870",
+          familyMembers: [
+            { id: "M001", name: "Silambaraselvan", age: 29, gender: "Male", relation: "Head" },
+            { id: "M002", name: "kiara", age: 29, gender: "Female", relation: "Wife" }
+          ],
+          rationAllocation: { rawRice: "5 Kg", boiledRice: "5 Kg", wheat: "1 Kg", sugar: "1 Kg", palmOil: "1 L", toorDal: "1 Kg" }
+        },
+        {
+          id: "TN-PDS-09-996220",
+          name: "Vikram",
+          cardType: "PHH",
+          fpsCode: "FPS035",
+          district: "Chennai",
+          registeredMobile: "9873216548",
+          familyMembers: [
+            { id: "M001", name: "Vikram", age: 38, gender: "Male", relation: "Head" },
+            { id: "M002", name: "Kumutha", age: 39, gender: "Female", relation: "Wife" },
+            { id: "M003", name: "Varsha", age: 10, gender: "Female", relation: "Daughter" },
+            { id: "M004", name: "Harsha", age: 10, gender: "Female", relation: "Daughter" }
+          ],
+          rationAllocation: { rawRice: "5 Kg", boiledRice: "5 Kg", wheat: "2 Kg", sugar: "2 Kg", palmOil: "1 L", toorDal: "1 Kg" }
+        }
+      ];
+
       for (const citizen of sampleCitizens) {
         const citizenRef = doc(firestore, 'citizens', citizen.id);
         batch.set(citizenRef, {
@@ -163,22 +169,29 @@ export default function LoginPage() {
         // Add a single prototype booking for each
         const bookingId = `proto-booking-${citizen.id}`;
         const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', bookingId);
+        
+        // Split the rice for the prototype QR data
+        const riceTotal = parseInt(citizen.rationAllocation.rawRice) + parseInt(citizen.rationAllocation.boiledRice);
+        
         batch.set(bookingRef, {
-          date: "2024-11-20",
+          date: "2024-12-15",
           timeSlot: "10:00 AM - 11:00 AM",
           status: "Booked",
           items: [
-            { name: "rawRice", quantity: 5, unit: "Kg" },
-            { name: "boiledRice", quantity: 5, unit: "Kg" },
-            { name: "sugar", quantity: 1, unit: "Kg" }
+            { name: "rawRice", quantity: parseInt(citizen.rationAllocation.rawRice), unit: "Kg" },
+            { name: "boiledRice", quantity: parseInt(citizen.rationAllocation.boiledRice), unit: "Kg" },
+            { name: "sugar", quantity: parseInt(citizen.rationAllocation.sugar), unit: "Kg" }
           ],
           paymentMethod: "cash",
           totalAmount: 25,
           qrData: JSON.stringify({
             cardId: citizen.id,
-            date: "2024-11-20",
+            date: "2024-12-15",
             slot: "10:00 AM - 11:00 AM",
-            items: [{ name: "rawRice", quantity: 5 }, { name: "boiledRice", quantity: 5 }],
+            items: [
+              { name: "rawRice", quantity: parseInt(citizen.rationAllocation.rawRice) }, 
+              { name: "boiledRice", quantity: parseInt(citizen.rationAllocation.boiledRice) }
+            ],
             total: 25,
             payment: "cash"
           }),
@@ -243,7 +256,10 @@ export default function LoginPage() {
     try {
       const trimmedSmartCardNumber = smartCardNumber.trim();
       localStorage.setItem('loggedInSmartCardNumber', trimmedSmartCardNumber);
-      await signInAnonymously(auth);
+      // Ensure we are signed in (handleVerifyOtp is usually called when logging in normally)
+      if (!auth.currentUser) {
+        await signInAnonymously(auth);
+      }
       router.push('/dashboard');
     } catch (error: any) {
       console.error('Error during login:', error);
