@@ -133,7 +133,6 @@ export default function RationSelectionPage() {
       const img = new Image();
 
       img.onload = () => {
-        // Set higher resolution for better print quality
         const scaleFactor = 4;
         canvas.width = img.width * scaleFactor;
         canvas.height = img.height * scaleFactor;
@@ -539,7 +538,7 @@ export default function RationSelectionPage() {
                   <Info className="h-4 w-4" />
                   <p>Items selected here are final and will be reserved for your chosen date.</p>
                 </div>
-             </Footer>
+             </CardFooter>
           )}
         </Card>
       </div>
