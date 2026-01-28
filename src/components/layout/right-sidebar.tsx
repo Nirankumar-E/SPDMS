@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { citizenServices, cardServices, fpsServices } from '@/lib/data';
+import { citizenServices, cardServices } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { ChevronRight } from 'lucide-react';
 import type { RightSidebarTranslations, ServiceItem } from '@/lib/i18n';
@@ -50,11 +50,6 @@ const RightSidebar = ({ i18n }: RightSidebarProps) => {
         {...cardServices}
         title={i18n.cardServices.title}
         i18n={i18n.cardServices.items}
-      />
-      <ServicePanel
-        {...fpsServices}
-        title={i18n.fpsServices.title}
-        i18n={i18n.fpsServices.items}
       />
     </div>
   );

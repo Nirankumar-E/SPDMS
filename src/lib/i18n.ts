@@ -18,6 +18,12 @@ export interface LeftSidebarTranslations {
   complaintPlaceholder: string;
   complaintSubmit: string;
   complaintSuccess: string;
+  fpsServices: {
+    title: string;
+    items: {
+      findShop: ServiceItem;
+    };
+  };
 }
 
 export interface MainContentTranslations {
@@ -56,12 +62,6 @@ export interface RightSidebarTranslations {
       changeAddress: ServiceItem;
       changeCardType: ServiceItem;
       removeMember: ServiceItem;
-    };
-  };
-  fpsServices: {
-    title: string;
-    items: {
-      findShop: ServiceItem;
     };
   };
 }
@@ -130,6 +130,12 @@ export const translations: Record<Language, Translations> = {
       complaintPlaceholder: 'ரேஷன் கடைகளில் நீங்கள் எதிர்கொள்ளும் சிரமங்களை இங்கே விவரிக்கவும்...',
       complaintSubmit: 'சமர்ப்பி',
       complaintSuccess: 'உங்கள் புகார் வெற்றிகரமாக சமர்ப்பிக்கப்பட்டது.',
+      fpsServices: {
+        title: 'FPS சேவைகள்',
+        items: {
+          findShop: { name: 'நியாய விலைக் கடையைக் கண்டறியவும்' },
+        },
+      },
     },
     mainContent: {
       title: 'செயல்படுத்தல் நிலைமை',
@@ -166,12 +172,6 @@ export const translations: Record<Language, Translations> = {
           changeAddress: { name: 'முகவரி மாற்றம்' },
           changeCardType: { name: 'அட்டை வகை மாற்றம்' },
           removeMember: { name: 'உறுப்பினரை நீக்கு' },
-        },
-      },
-      fpsServices: {
-        title: 'FPS சேவைகள்',
-        items: {
-          findShop: { name: 'நியாய விலைக் கடையைக் கண்டறியவும்' },
         },
       },
     },
@@ -226,6 +226,12 @@ export const translations: Record<Language, Translations> = {
       complaintPlaceholder: 'Describe inconveniences faced at ration shops...',
       complaintSubmit: 'Submit',
       complaintSuccess: 'Your complaint has been submitted successfully.',
+      fpsServices: {
+        title: 'FPS Services',
+        items: {
+          findShop: { name: 'Find Fair Price Shop' },
+        },
+      },
     },
     mainContent: {
       title: 'Implementation Status',
@@ -262,12 +268,6 @@ export const translations: Record<Language, Translations> = {
           changeAddress: { name: 'Change Address' },
           changeCardType: { name: 'Change Card Type' },
           removeMember: { name: 'Remove Member' },
-        },
-      },
-      fpsServices: {
-        title: 'FPS Services',
-        items: {
-          findShop: { name: 'Find Fair Price Shop' },
         },
       },
     },
