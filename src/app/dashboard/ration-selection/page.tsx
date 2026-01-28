@@ -25,7 +25,6 @@ import {
   ArrowLeft, 
   ArrowRight,
   CreditCard,
-  QrCode,
   Info,
   Loader2,
   Download
@@ -160,6 +159,9 @@ export default function RationSelectionPage() {
   };
 
   const onSubmit = async (data: BookingFormValues) => {
+    // IMPORTANT: submission guard to prevent skipping Step 3
+    if (step !== 'payment') return;
+    
     if (!citizen || !firestore) return;
 
     try {
@@ -181,7 +183,7 @@ export default function RationSelectionPage() {
       });
 
       const bookingsRef = collection(firestore, 'citizens', citizen.id, 'bookings');
-      addDoc(bookingsRef, {
+      await addDoc(bookingsRef, {
         date: format(data.date, 'yyyy-MM-dd'),
         timeSlot: data.timeSlot,
         status: 'Booked',
@@ -220,7 +222,9 @@ export default function RationSelectionPage() {
       }
       setStep('items');
     } else if (step === 'items') {
-      setStep('payment');
+      // Small timeout to prevent the "Next" button click from also triggering the "Confirm" button
+      // if the user is double clicking.
+      setTimeout(() => setStep('payment'), 50);
     }
   };
 
@@ -385,6 +389,9 @@ export default function RationSelectionPage() {
                                     min={0}
                                     max={maxQty}
                                     value={selectedItems[key]?.quantity || 0}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') e.preventDefault();
+                                    }}
                                     onChange={(e) => {
                                       const v = Math.min(maxQty, Math.max(0, parseInt(e.target.value) || 0));
                                       setSelectedItems(prev => ({ ...prev, [key]: { ...prev[key], quantity: v } }));
