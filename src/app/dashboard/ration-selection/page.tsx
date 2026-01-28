@@ -115,7 +115,8 @@ export default function RationSelectionPage() {
   }, [selectedItems, prices]);
 
   const handleDownloadQR = () => {
-    const svg = document.getElementById('collection-qr-code') as SVGGraphicsElement;
+    // Cast to unknown first to satisfy TypeScript conversion rules
+    const svg = document.getElementById('collection-qr-code') as unknown as SVGGraphicsElement;
     if (!svg) {
       toast({
         variant: "destructive",
