@@ -45,7 +45,8 @@
           "type": "object",
           "description": "The monthly ration allocation for the card.",
           "properties": {
-            "rice": { "type": "string" },
+            "rawRice": { "type": "string" },
+            "boiledRice": { "type": "string" },
             "wheat": { "type": "string" },
             "sugar": { "type": "string" },
             "palmOil": { "type": "string" },

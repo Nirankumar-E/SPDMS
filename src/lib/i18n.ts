@@ -406,7 +406,8 @@ export const translations: Record<Language, Translations> = {
     },
     data: {
       items: {
-        rice: 'அரிசி',
+        rawRice: 'பச்சரிசி',
+        boiledRice: 'புழுங்கல் அரிசி',
         wheat: 'கோதுமை',
         sugar: 'சர்க்கரை',
         palmOil: 'பாமாயில்',
@@ -611,7 +612,8 @@ export const translations: Record<Language, Translations> = {
     },
     data: {
       items: {
-        rice: 'Rice',
+        rawRice: 'Raw Rice',
+        boiledRice: 'Boiled Rice',
         wheat: 'Wheat',
         sugar: 'Sugar',
         palmOil: 'Palm Oil',

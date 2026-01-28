@@ -22,19 +22,19 @@ export default function TransactionsPage() {
     { 
       id: "INV-2024-001", 
       date: "2024-10-15", 
-      items: "Rice (20kg), Wheat (5kg), Sugar (2kg)",
+      items: "Raw Rice (10kg), Boiled Rice (10kg), Wheat (5kg), Sugar (2kg)",
       status: "Collected"
     },
     { 
       id: "INV-2024-002", 
       date: "2024-09-12", 
-      items: "Rice (20kg), Palm Oil (1L), Toor Dal (1kg)",
+      items: "Raw Rice (10kg), Boiled Rice (10kg), Palm Oil (1L), Toor Dal (1kg)",
       status: "Collected"
     },
     { 
       id: "INV-2024-003", 
       date: "2024-08-05", 
-      items: "Rice (20kg), Wheat (5kg), Sugar (2kg)",
+      items: "Raw Rice (10kg), Boiled Rice (10kg), Wheat (5kg), Sugar (2kg)",
       status: "Collected"
     }
   ];
