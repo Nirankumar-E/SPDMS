@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -15,7 +16,8 @@ import {
   Store, 
   History, 
   LogOut, 
-  Building2 
+  Building2,
+  QrCode
 } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -58,6 +60,7 @@ export default function AppSidebar() {
   const menuItems = [
     { label: i18n.sidebarMenu.familyMembers, icon: Users, href: '/dashboard', badge: citizen?.familyMembers?.length },
     { label: i18n.sidebarMenu.myBookings, icon: Calendar, href: '/dashboard/ration-selection' },
+    { label: i18n.sidebarMenu.myQRCodes, icon: QrCode, href: '/dashboard/my-qr-codes' },
     { label: i18n.sidebarMenu.shopDetails, icon: Store, href: '/dashboard/shop-details' },
     { label: i18n.sidebarMenu.transactions, icon: History, href: '/dashboard/transactions' },
   ];

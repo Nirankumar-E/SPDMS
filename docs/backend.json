@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Citizen": {
@@ -82,9 +83,24 @@
         "status": {
           "type": "string",
           "description": "The status of the booking (e.g., Booked, Collected)."
-        }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unit": { "type": "string" }
+            }
+          }
+        },
+        "paymentMethod": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "qrData": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["date", "timeSlot", "status"]
+      "required": ["date", "timeSlot", "status", "paymentMethod"]
     }
   },
   "auth": {
@@ -113,17 +129,21 @@
         }
       },
       {
-        "path": "/bookings/{citizenId}",
+        "path": "/citizens/{citizenId}/bookings/{bookingId}",
         "definition": {
           "entityName": "Booking",
           "schema": {
             "$ref": "#/backend/entities/Booking"
           },
-          "description": "Stores ration collection bookings for each citizen, indexed by their Smart Card number (citizenId).",
+          "description": "Stores history of ration collection bookings for each citizen.",
           "params": [
             {
               "name": "citizenId",
-              "description": "The unique Smart Card number of the citizen making the booking."
+              "description": "The unique Smart Card number of the citizen."
+            },
+             {
+              "name": "bookingId",
+              "description": "Unique identifier for the booking."
             }
           ]
         }

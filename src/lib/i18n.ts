@@ -1,3 +1,4 @@
+
 export type Language = 'TA' | 'EN';
 
 export interface ServiceItem {
@@ -19,6 +20,7 @@ export interface SidebarMenuTranslations {
   myBookings: string;
   shopDetails: string;
   transactions: string;
+  myQRCodes: string;
   logout: string;
 }
 
@@ -172,6 +174,12 @@ export interface BookingTranslations {
   title: string;
   description: string;
   allocationTitle: string;
+  steps: {
+    appointment: string;
+    items: string;
+    payment: string;
+    qr: string;
+  };
   form: {
     dateLabel: string;
     datePlaceholder: string;
@@ -179,6 +187,12 @@ export interface BookingTranslations {
     slotPlaceholder: string;
     submit: string;
     submitting: string;
+    next: string;
+    back: string;
+    paymentLabel: string;
+    total: string;
+    qrInstructions: string;
+    downloadQR: string;
   };
   success: {
     title: string;
@@ -203,6 +217,15 @@ export interface DataTranslations {
   items: Record<string, string>;
   relations: Record<string, string>;
   genders: Record<string, string>;
+  payments: Record<string, string>;
+}
+
+export interface QRHistoryTranslations {
+  title: string;
+  subtitle: string;
+  viewDetails: string;
+  noHistory: string;
+  bookingDetails: string;
 }
 
 interface Translations {
@@ -221,6 +244,7 @@ interface Translations {
   booking: BookingTranslations;
   homeLoggedIn: HomeLoggedInTranslations;
   data: DataTranslations;
+  qrHistory: QRHistoryTranslations;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -239,6 +263,7 @@ export const translations: Record<Language, Translations> = {
       myBookings: 'எனது முன்பதிவுகள்',
       shopDetails: 'கடை விவரங்கள்',
       transactions: 'பரிவர்த்தனை விவரங்கள்',
+      myQRCodes: 'எனது QR குறியீடுகள்',
       logout: 'வெளியேறு',
     },
     shopDetails: {
@@ -279,7 +304,7 @@ export const translations: Record<Language, Translations> = {
         taluks: 'வட்டங்கள்',
         shops: 'நியாய விலைக் கடைகள்',
         beneficiaries: 'பயனாளிகள்',
-        rawRice: 'பச்சரிசி விநியோகம் (மெ.டன்)',
+        rawRice: 'பச்சரிசி விநல்லியோகம் (மெ.டன்)',
         boiledRice: 'புழுங்கல் அரிசி விநியோகம் (மெ.டன்)',
         sugarKerosene: 'சர்க்கரை / மண்ணெண்ணெய்',
       },
@@ -378,16 +403,28 @@ export const translations: Record<Language, Translations> = {
       },
     },
     booking: {
-      title: 'ரேஷன் தேர்வு மற்றும் நேர ஒதுக்கீடு முன்பதிவு',
+      title: 'ரேஷன் தேர்வு மற்றும் முன்பதிவு',
       description: 'உங்கள் உருப்படிகளை உறுதிசெய்து நேரத்தை முன்பதிவு செய்யுங்கள்.',
       allocationTitle: 'உங்கள் மாதாந்திர ரேஷன் ஒதுக்கீடு',
+      steps: {
+        appointment: 'நேரம்',
+        items: 'உருப்படிகள்',
+        payment: 'கட்டணம்',
+        qr: 'QR குறியீடு',
+      },
       form: {
-        dateLabel: 'சேகரிப்பு தேதியைத் தேர்வுசெய்க',
+        dateLabel: 'சேகரிப்பு தேதி',
         datePlaceholder: 'தேதியைத் தேர்ந்தெடுக்கவும்',
-        slotLabel: 'சேகரிப்பு நேரத்தைத் தேர்வுசெய்க',
+        slotLabel: 'சேகரிப்பு நேரம்',
         slotPlaceholder: 'நேரத்தைத் தேர்ந்தெடுக்கவும்',
         submit: 'முன்பதிவை உறுதிப்படுத்து',
         submitting: 'முன்பதிவு செய்யப்படுகிறது...',
+        next: 'அடுத்தது',
+        back: 'முந்தைய',
+        paymentLabel: 'கட்டண முறை',
+        total: 'மொத்த தொகை',
+        qrInstructions: 'இந்த QR குறியீட்டை நியாய விலைக் கடையில் காண்பிக்கவும்.',
+        downloadQR: 'பதிவிறக்கம்',
       },
       success: {
         title: 'முன்பதிவு உறுதி செய்யப்பட்டது!',
@@ -429,6 +466,17 @@ export const translations: Record<Language, Translations> = {
         Female: 'பெண்',
         Other: 'மற்றவை',
       },
+      payments: {
+        cash: 'கடைக்கவுண்டரில் ரொக்கம்',
+        upi: 'UPI கட்டணம்',
+      },
+    },
+    qrHistory: {
+      title: 'எனது QR குறியீடுகள்',
+      subtitle: 'உங்கள் சமீபத்திய மற்றும் கடந்தகால முன்பதிவுகளின் QR குறியீடுகள்',
+      viewDetails: 'விவரங்களைக் காண்க',
+      noHistory: 'முன்பதிவு வரலாறு எதுவும் இல்லை.',
+      bookingDetails: 'முன்பதிவு விவரங்கள்',
     },
   },
   EN: {
@@ -446,6 +494,7 @@ export const translations: Record<Language, Translations> = {
       myBookings: 'My Bookings',
       shopDetails: 'Shop Details',
       transactions: 'Transactions',
+      myQRCodes: 'My QR Codes',
       logout: 'Logout',
     },
     shopDetails: {
@@ -585,16 +634,28 @@ export const translations: Record<Language, Translations> = {
       },
     },
     booking: {
-      title: 'Ration Selection & Time Slot Booking',
+      title: 'Ration Selection & Booking',
       description: 'Confirm your items and book a collection slot.',
       allocationTitle: 'Your Monthly Ration Allocation',
+      steps: {
+        appointment: 'Appointment',
+        items: 'Items',
+        payment: 'Payment',
+        qr: 'QR Code',
+      },
       form: {
-        dateLabel: 'Choose Collection Date',
+        dateLabel: 'Collection Date',
         datePlaceholder: 'Pick a date',
-        slotLabel: 'Choose Collection Slot',
+        slotLabel: 'Collection Slot',
         slotPlaceholder: 'Select a time slot',
         submit: 'Confirm Booking',
         submitting: 'Booking...',
+        next: 'Next',
+        back: 'Back',
+        paymentLabel: 'Payment Method',
+        total: 'Total Amount',
+        qrInstructions: 'Show this QR code at the Fair Price Shop.',
+        downloadQR: 'Download',
       },
       success: {
         title: 'Booking Confirmed!',
@@ -636,6 +697,17 @@ export const translations: Record<Language, Translations> = {
         Female: 'Female',
         Other: 'Other',
       },
+      payments: {
+        cash: 'Cash at Counter',
+        upi: 'UPI Payment',
+      },
+    },
+    qrHistory: {
+      title: 'My QR Codes',
+      subtitle: 'Recent and past booking QR codes',
+      viewDetails: 'View Details',
+      noHistory: 'No booking history found.',
+      bookingDetails: 'Booking Details',
     },
   },
 };
