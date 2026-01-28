@@ -27,7 +27,8 @@ import {
   CreditCard,
   QrCode,
   Info,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -113,6 +114,51 @@ export default function RationSelectionPage() {
       return acc;
     }, 0);
   }, [selectedItems, prices]);
+
+  const handleDownloadQR = () => {
+    const svg = document.getElementById('collection-qr-code') as SVGGraphicsElement;
+    if (!svg) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "QR code element not found."
+      });
+      return;
+    }
+
+    try {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        // Set higher resolution for better print quality
+        const scaleFactor = 4;
+        canvas.width = img.width * scaleFactor;
+        canvas.height = img.height * scaleFactor;
+        if (ctx) {
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const pngFile = canvas.toDataURL('image/png');
+          const downloadLink = document.createElement('a');
+          downloadLink.download = `TN-PDS-QR-${citizen?.id || 'unknown'}.png`;
+          downloadLink.href = pngFile;
+          downloadLink.click();
+        }
+      };
+
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    } catch (err) {
+      console.error("Download error:", err);
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "Could not generate the image file."
+      });
+    }
+  };
 
   const onSubmit = async (data: BookingFormValues) => {
     if (!citizen || !firestore) return;
@@ -427,7 +473,7 @@ export default function RationSelectionPage() {
                     <div className="relative">
                       <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-150" />
                       <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-8 border-primary relative z-10 transform hover:scale-105 transition-transform">
-                        <QRCodeSVG value={generatedQR} size={220} level="H" includeMargin />
+                        <QRCodeSVG id="collection-qr-code" value={generatedQR} size={220} level="H" includeMargin />
                       </div>
                     </div>
                     <div className="text-center space-y-3">
@@ -438,8 +484,12 @@ export default function RationSelectionPage() {
                       <p className="text-gray-500 font-medium max-w-sm">{bookingI18n.form.qrInstructions}</p>
                     </div>
                     <div className="w-full max-w-sm space-y-4 pt-4">
-                      <Button type="button" className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-bold shadow-lg" onClick={() => window.print()}>
-                        <QrCode className="mr-3 h-6 w-6" />
+                      <Button 
+                        type="button" 
+                        className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-bold shadow-lg" 
+                        onClick={handleDownloadQR}
+                      >
+                        <Download className="mr-3 h-6 w-6" />
                         {bookingI18n.form.downloadQR}
                       </Button>
                       <Button type="button" variant="outline" className="w-full h-14 rounded-2xl text-lg font-bold border-2" asChild>
@@ -489,7 +539,7 @@ export default function RationSelectionPage() {
                   <Info className="h-4 w-4" />
                   <p>Items selected here are final and will be reserved for your chosen date.</p>
                 </div>
-             </CardFooter>
+             </Footer>
           )}
         </Card>
       </div>
