@@ -7,6 +7,7 @@ import { LogIn, User, LogOut } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/language-context';
+import AppSidebar from './app-sidebar';
 
 const Header = () => {
   const { user, loading } = useUser();
@@ -67,17 +68,23 @@ const Header = () => {
       {/* Main Header */}
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 md:gap-4">
-          <Link href="/" className="flex items-center gap-2 md:gap-4">
-            <GovernmentEmblem className="h-12 w-12 md:h-16 md:w-16" />
-            <div>
-              <h1 className="text-lg sm:text-xl md:text-3xl font-bold text-primary font-headline">
-                {headerI18n.title}
-              </h1>
-              <p className="text-xs sm:text-sm md:text-base text-gray-600">
-                {headerI18n.subtitle}
-              </p>
-            </div>
-          </Link>
+          <div className="flex items-center gap-2">
+            {user && <AppSidebar />}
+            <Link href="/" className="flex items-center gap-2 md:gap-4">
+              <GovernmentEmblem className="h-10 w-10 md:h-16 md:w-16" />
+              <div className="hidden sm:block">
+                <h1 className="text-base sm:text-xl md:text-2xl font-bold text-primary font-headline leading-tight">
+                  {headerI18n.title}
+                </h1>
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600">
+                  {headerI18n.subtitle}
+                </p>
+              </div>
+              <div className="sm:hidden">
+                 <h1 className="text-lg font-bold text-primary font-headline">SPDMS</h1>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     </header>

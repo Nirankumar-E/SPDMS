@@ -13,6 +13,36 @@ export interface HeaderTranslations {
   subtitle: string;
 }
 
+export interface SidebarMenuTranslations {
+  menu: string;
+  familyMembers: string;
+  myBookings: string;
+  shopDetails: string;
+  transactions: string;
+  logout: string;
+}
+
+export interface ShopDetailsTranslations {
+  title: string;
+  shopName: string;
+  shopCode: string;
+  address: string;
+  timings: string;
+  location: string;
+  weekdays: string;
+  weekends: string;
+}
+
+export interface TransactionsTranslations {
+  title: string;
+  subtitle: string;
+  date: string;
+  invoiceNo: string;
+  items: string;
+  status: string;
+  collected: string;
+}
+
 export interface LeftSidebarTranslations {
   complaintTitle: string;
   complaintPlaceholder: string;
@@ -176,6 +206,9 @@ export interface DataTranslations {
 
 interface Translations {
   header: HeaderTranslations;
+  sidebarMenu: SidebarMenuTranslations;
+  shopDetails: ShopDetailsTranslations;
+  transactions: TransactionsTranslations;
   leftSidebar: LeftSidebarTranslations;
   mainContent: MainContentTranslations;
   rightSidebar: RightSidebarTranslations;
@@ -198,6 +231,33 @@ export const translations: Record<Language, Translations> = {
       citizenLogin: 'குடிமக்கள் உள்நுழைவு',
       title: 'பொது விநியோகத் திட்டம்',
       subtitle: 'தமிழ்நாடு அரசு',
+    },
+    sidebarMenu: {
+      menu: 'மெனு',
+      familyMembers: 'குடும்ப உறுப்பினர்கள்',
+      myBookings: 'எனது முன்பதிவுகள்',
+      shopDetails: 'கடை விவரங்கள்',
+      transactions: 'பரிவர்த்தனை விவரங்கள்',
+      logout: 'வெளியேறு',
+    },
+    shopDetails: {
+      title: 'நியாய விலைக் கடை விவரங்கள்',
+      shopName: 'கடை பெயர்',
+      shopCode: 'கடை குறியீடு',
+      address: 'முகவரி',
+      timings: 'கடை திறந்திருக்கும் நேரம்',
+      location: 'வரைபடத்தில் இடம்',
+      weekdays: 'திங்கள் - சனி',
+      weekends: 'ஞாயிறு',
+    },
+    transactions: {
+      title: 'பரிவர்த்தனை வரலாறு',
+      subtitle: 'உங்கள் கடந்தகால ரேஷன் சேகரிப்பு விவரங்கள்',
+      date: 'தேதி',
+      invoiceNo: 'பட்டியல் எண்',
+      items: 'பொருட்கள்',
+      status: 'நிலை',
+      collected: 'சேகரிக்கப்பட்டது',
     },
     leftSidebar: {
       complaintTitle: 'புகார் பெட்டி',
@@ -376,6 +436,33 @@ export const translations: Record<Language, Translations> = {
       citizenLogin: 'Citizen Login',
       title: 'Public Distribution System',
       subtitle: 'Government of Tamil Nadu',
+    },
+    sidebarMenu: {
+      menu: 'Menu',
+      familyMembers: 'Family Members',
+      myBookings: 'My Bookings',
+      shopDetails: 'Shop Details',
+      transactions: 'Transactions',
+      logout: 'Logout',
+    },
+    shopDetails: {
+      title: 'Fair Price Shop Details',
+      shopName: 'Shop Name',
+      shopCode: 'Shop Code',
+      address: 'Address',
+      timings: 'Shop Operating Hours',
+      location: 'Location on Map',
+      weekdays: 'Mon - Sat',
+      weekends: 'Sunday',
+    },
+    transactions: {
+      title: 'Transaction History',
+      subtitle: 'Details of your past ration collections',
+      date: 'Date',
+      invoiceNo: 'Invoice No',
+      items: 'Items',
+      status: 'Status',
+      collected: 'Collected',
     },
     leftSidebar: {
       complaintTitle: 'Complaint Box',
