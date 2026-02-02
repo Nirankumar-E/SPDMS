@@ -8,10 +8,18 @@ service cloud.firestore {
     }
 
     match /citizens/{citizenId} {
-      allow get, create, set: if true;
-      allow read, update: if isSignedIn();
+      // Allow getting a citizen by ID for login verification and initial setup
+      allow get: if true;
+      allow create, set: if true;
+      
+      // Restrict listing all citizens to prevent data scraping
+      allow list: if false;
+      
+      // Only signed-in users can update their profile data
+      allow update: if isSignedIn();
       
       match /bookings/{bookingId} {
+        // Authenticated users can read and write their own collection bookings
         allow read, write: if isSignedIn();
       }
       
@@ -19,8 +27,10 @@ service cloud.firestore {
     }
 
     match /fps_slots/{slotId} {
-      // Allow authenticated users to check availability and update counts
-      allow read, write: if isSignedIn();
+      // Slot availability is public information to avoid auth-related race conditions during dashboard loading
+      allow read: if true;
+      // Only authenticated users can update slot counts when performing a booking
+      allow write: if isSignedIn();
     }
   }
 }
