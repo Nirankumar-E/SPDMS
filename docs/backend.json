@@ -101,6 +101,15 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["date", "timeSlot", "status", "paymentMethod"]
+    },
+    "SlotTracking": {
+      "title": "SlotTracking",
+      "type": "object",
+      "description": "Tracks the number of bookings for a specific shop, date, and time slot.",
+      "properties": {
+        "count": { "type": "number", "description": "Number of citizens who have booked this slot." }
+      },
+      "required": ["count"]
     }
   },
   "auth": {
@@ -144,6 +153,22 @@
              {
               "name": "bookingId",
               "description": "Unique identifier for the booking."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/fps_slots/{slotId}",
+        "definition": {
+          "entityName": "SlotTracking",
+          "schema": {
+            "$ref": "#/backend/entities/SlotTracking"
+          },
+          "description": "Tracks slot availability. slotId format: {fpsCode}_{date}_{slotIndex}",
+          "params": [
+            {
+              "name": "slotId",
+              "description": "Unique identifier for the shop's slot on a specific day."
             }
           ]
         }

@@ -1,13 +1,23 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useDashboard } from '../layout';
-import { useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { 
+  collection, 
+  addDoc, 
+  serverTimestamp, 
+  runTransaction, 
+  doc, 
+  query, 
+  where, 
+  documentId 
+} from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -27,7 +37,8 @@ import {
   CreditCard,
   Info,
   Loader2,
-  Download
+  Download,
+  Users
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -43,6 +54,15 @@ import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
 import Header from '@/components/layout/header';
 import { QRCodeSVG } from 'qrcode.react';
+
+const SLOT_LIMIT = 16;
+const TIME_SLOTS = [
+  "09:00 AM - 10:00 AM",
+  "10:00 AM - 11:00 AM",
+  "11:00 AM - 12:00 PM",
+  "02:00 PM - 03:00 PM",
+  "03:00 PM - 04:00 PM"
+];
 
 const bookingSchema = z.object({
   date: z.date({ required_error: 'A date for pickup is required.' }),
@@ -82,6 +102,38 @@ export default function RationSelectionPage() {
     }
   });
 
+  const selectedDate = form.watch('date');
+
+  // Generate slot document IDs for the selected shop and date
+  const slotDocIds = useMemo(() => {
+    if (!citizen?.fpsCode || !selectedDate) return [];
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return TIME_SLOTS.map((_, idx) => `${citizen.fpsCode}_${dateStr}_slot${idx}`);
+  }, [citizen?.fpsCode, selectedDate]);
+
+  // Fetch slot availability in real-time
+  const slotsQuery = useMemoFirebase(() => {
+    if (!firestore || slotDocIds.length === 0) return null;
+    return query(collection(firestore, 'fps_slots'), where(documentId(), 'in', slotDocIds));
+  }, [firestore, slotDocIds]);
+
+  const { data: slotCounts, isLoading: isLoadingSlots } = useCollection(slotsQuery);
+
+  // Map fetched counts to slot strings
+  const availabilityMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (slotCounts) {
+      slotCounts.forEach((doc: any) => {
+        // Find which slot index this document corresponds to
+        const idx = slotDocIds.indexOf(doc.id);
+        if (idx !== -1) {
+          map[TIME_SLOTS[idx]] = doc.count || 0;
+        }
+      });
+    }
+    return map;
+  }, [slotCounts, slotDocIds]);
+
   const normalizedAllocation = useMemo(() => {
     if (!citizen?.rationAllocation) return {};
     const alloc = { ...citizen.rationAllocation };
@@ -94,7 +146,7 @@ export default function RationSelectionPage() {
     return alloc;
   }, [citizen]);
 
-  useMemo(() => {
+  useEffect(() => {
     if (Object.keys(normalizedAllocation).length > 0 && Object.keys(selectedItems).length === 0) {
       const initial: Record<string, any> = {};
       Object.entries(normalizedAllocation).forEach(([key, val]) => {
@@ -112,10 +164,9 @@ export default function RationSelectionPage() {
       }
       return acc;
     }, 0);
-  }, [selectedItems, prices]);
+  }, [selectedItems]);
 
   const handleDownloadQR = () => {
-    // Cast to unknown first to satisfy TypeScript conversion rules
     const svg = document.getElementById('collection-qr-code') as unknown as SVGGraphicsElement;
     if (!svg) {
       toast({
@@ -160,51 +211,68 @@ export default function RationSelectionPage() {
   };
 
   const onSubmit = async (data: BookingFormValues) => {
-    // IMPORTANT: submission guard to prevent skipping Step 3
     if (step !== 'payment') return;
-    
     if (!citizen || !firestore) return;
 
     try {
-      const finalItems = Object.entries(selectedItems)
-        .filter(([_, val]) => val.enabled)
-        .map(([key, val]) => ({
-          name: key,
-          quantity: val.quantity,
-          unit: 'Kg'
-        }));
+      const dateStr = format(data.date, 'yyyy-MM-dd');
+      const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
+      const slotDocId = `${citizen.fpsCode}_${dateStr}_slot${slotIndex}`;
+      const slotRef = doc(firestore, 'fps_slots', slotDocId);
 
-      const qrContent = JSON.stringify({
-        cardId: citizen.id,
-        date: format(data.date, 'yyyy-MM-dd'),
-        slot: data.timeSlot,
-        items: finalItems,
-        total: totalAmount,
-        payment: data.paymentMethod
+      // Perform a transaction to ensure slot availability
+      await runTransaction(firestore, async (transaction) => {
+        const slotSnapshot = await transaction.get(slotRef);
+        const currentCount = slotSnapshot.exists() ? slotSnapshot.data().count || 0 : 0;
+
+        if (currentCount >= SLOT_LIMIT) {
+          throw new Error('This slot is now full. Please select another time.');
+        }
+
+        // Update slot count
+        transaction.set(slotRef, { count: currentCount + 1 }, { merge: true });
+
+        // Create booking
+        const finalItems = Object.entries(selectedItems)
+          .filter(([_, val]) => val.enabled)
+          .map(([key, val]) => ({
+            name: key,
+            quantity: val.quantity,
+            unit: 'Kg'
+          }));
+
+        const qrContent = JSON.stringify({
+          cardId: citizen.id,
+          date: dateStr,
+          slot: data.timeSlot,
+          items: finalItems,
+          total: totalAmount,
+          payment: data.paymentMethod
+        });
+
+        const bookingsRef = doc(collection(firestore, 'citizens', citizen.id, 'bookings'));
+        transaction.set(bookingsRef, {
+          date: dateStr,
+          timeSlot: data.timeSlot,
+          status: 'Booked',
+          items: finalItems,
+          paymentMethod: data.paymentMethod,
+          totalAmount,
+          qrData: qrContent,
+          createdAt: serverTimestamp()
+        });
+
+        setGeneratedQR(qrContent);
       });
 
-      const bookingsRef = collection(firestore, 'citizens', citizen.id, 'bookings');
-      await addDoc(bookingsRef, {
-        date: format(data.date, 'yyyy-MM-dd'),
-        timeSlot: data.timeSlot,
-        status: 'Booked',
-        items: finalItems,
-        paymentMethod: data.paymentMethod,
-        totalAmount,
-        qrData: qrContent,
-        createdAt: serverTimestamp()
-      });
-
-      setGeneratedQR(qrContent);
       setStep('qr');
-      
       toast({
         title: bookingI18n.success.title,
         description: bookingI18n.success.description,
       });
 
     } catch (error: any) {
-      console.error('Error creating booking:', error);
+      console.error('Booking transaction failed:', error);
       toast({
         variant: 'destructive',
         title: 'Booking Failed',
@@ -221,10 +289,17 @@ export default function RationSelectionPage() {
         form.trigger(['date', 'timeSlot']);
         return;
       }
+      // Double check slot is not full locally
+      if (availabilityMap[slot] >= SLOT_LIMIT) {
+        toast({
+            variant: "destructive",
+            title: "Slot Full",
+            description: "Please select another time slot."
+        });
+        return;
+      }
       setStep('items');
     } else if (step === 'items') {
-      // Small timeout to prevent the "Next" button click from also triggering the "Confirm" button
-      // if the user is double clicking.
       setTimeout(() => setStep('payment'), 50);
     }
   };
@@ -331,21 +406,34 @@ export default function RationSelectionPage() {
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
                             <FormLabel className="text-lg font-bold text-gray-700">{bookingI18n.form.slotLabel}</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDate}>
                               <FormControl>
                                 <SelectTrigger className="h-14 rounded-2xl border-2 font-medium hover:border-primary transition-all">
                                   <SelectValue placeholder={bookingI18n.form.slotPlaceholder} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent className="rounded-2xl">
-                                <SelectItem value="09:00 AM - 10:00 AM">09:00 AM - 10:00 AM</SelectItem>
-                                <SelectItem value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</SelectItem>
-                                <SelectItem value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</SelectItem>
-                                <SelectItem value="02:00 PM - 03:00 PM">02:00 PM - 03:00 PM</SelectItem>
-                                <SelectItem value="03:00 PM - 04:00 PM">03:00 PM - 04:00 PM</SelectItem>
+                                {TIME_SLOTS.map((slot) => {
+                                    const currentCount = availabilityMap[slot] || 0;
+                                    const isFull = currentCount >= SLOT_LIMIT;
+                                    return (
+                                        <SelectItem key={slot} value={slot} disabled={isFull}>
+                                            <div className="flex items-center justify-between w-full min-w-[200px]">
+                                                <span>{slot}</span>
+                                                <div className="flex items-center gap-1.5 ml-4">
+                                                    <Users className={cn("h-3.5 w-3.5", isFull ? "text-destructive" : "text-primary")} />
+                                                    <span className={cn("text-xs font-bold", isFull ? "text-destructive" : "text-gray-500")}>
+                                                        {isFull ? "Full" : `${currentCount}/${SLOT_LIMIT}`}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </SelectItem>
+                                    );
+                                })}
                               </SelectContent>
                             </Select>
                             <FormMessage />
+                            {!selectedDate && <p className="text-[10px] text-muted-foreground font-medium">Select a date first to see availability.</p>}
                           </FormItem>
                         )}
                       />
@@ -516,9 +604,9 @@ export default function RationSelectionPage() {
                     )}
                     
                     {step !== 'payment' ? (
-                      <Button type="button" className="flex-1 h-14 rounded-2xl text-lg font-bold bg-primary hover:bg-primary/90 shadow-lg" onClick={nextStep}>
-                        {bookingI18n.form.next}
-                        <ArrowRight className="ml-2 h-6 w-6" />
+                      <Button type="button" className="flex-1 h-14 rounded-2xl text-lg font-bold bg-primary hover:bg-primary/90 shadow-lg" onClick={nextStep} disabled={isLoadingSlots}>
+                        {isLoadingSlots ? <Loader2 className="animate-spin h-6 w-6" /> : bookingI18n.form.next}
+                        {!isLoadingSlots && <ArrowRight className="ml-2 h-6 w-6" />}
                       </Button>
                     ) : (
                       <Button type="submit" className="flex-1 h-14 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700 shadow-lg" disabled={form.formState.isSubmitting}>
