@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,6 @@ import { useDashboard } from '../layout';
 import { useFirestore } from '@/firebase';
 import { 
   collection, 
-  addDoc, 
   serverTimestamp, 
   doc, 
   setDoc
@@ -34,8 +33,7 @@ import {
   CreditCard,
   Info,
   Loader2,
-  Download,
-  Users
+  Download
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -84,6 +82,7 @@ export default function RationSelectionPage() {
   const [step, setStep] = useState<Step>('appointment');
   const [selectedItems, setSelectedItems] = useState<Record<string, { enabled: boolean; quantity: number }>>({});
   const [generatedQR, setGeneratedQR] = useState<string | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const prices: Record<string, number> = {
     rawRice: 0,
@@ -135,8 +134,8 @@ export default function RationSelectionPage() {
     }, 0);
   }, [selectedItems]);
 
-  const handleDownloadQR = () => {
-    const svg = document.getElementById('collection-qr-code') as unknown as any;
+  const handleDownloadQR = useCallback(() => {
+    const svg = document.getElementById('collection-qr-code') as unknown as SVGGraphicsElement;
     if (!svg) {
       toast({
         variant: "destructive",
@@ -177,9 +176,10 @@ export default function RationSelectionPage() {
         description: "Could not generate the image file."
       });
     }
-  };
+  }, [citizen?.id, toast]);
 
   const onSubmit = async (data: BookingFormValues) => {
+    // CRITICAL: Verify we are actually on the payment step before allowing submission
     if (step !== 'payment') return;
     if (!citizen || !firestore) return;
 
@@ -249,6 +249,8 @@ export default function RationSelectionPage() {
   };
 
   const nextStep = () => {
+    if (isTransitioning) return;
+    
     if (step === 'appointment') {
       const date = form.getValues('date');
       const slot = form.getValues('timeSlot');
@@ -256,15 +258,22 @@ export default function RationSelectionPage() {
         form.trigger(['date', 'timeSlot']);
         return;
       }
+      setIsTransitioning(true);
       setStep('items');
+      setTimeout(() => setIsTransitioning(false), 300);
     } else if (step === 'items') {
+      setIsTransitioning(true);
       setStep('payment');
+      setTimeout(() => setIsTransitioning(false), 300);
     }
   };
 
   const prevStep = () => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
     if (step === 'items') setStep('appointment');
     if (step === 'payment') setStep('items');
+    setTimeout(() => setIsTransitioning(false), 300);
   };
 
   if (!citizen) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
@@ -543,19 +552,30 @@ export default function RationSelectionPage() {
                 {step !== 'qr' && (
                   <div className="flex items-center gap-6 pt-8">
                     {step !== 'appointment' && (
-                      <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl text-lg font-bold text-gray-500" onClick={prevStep}>
+                      <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl text-lg font-bold text-gray-500" onClick={prevStep} disabled={isTransitioning}>
                         <ArrowLeft className="mr-2 h-6 w-6" />
                         {bookingI18n.form.back}
                       </Button>
                     )}
                     
                     {step !== 'payment' ? (
-                      <Button type="button" className="flex-1 h-14 rounded-2xl text-lg font-bold bg-primary hover:bg-primary/90 shadow-lg" onClick={nextStep}>
+                      <Button 
+                        key={`next-${step}`}
+                        type="button" 
+                        className="flex-1 h-14 rounded-2xl text-lg font-bold bg-primary hover:bg-primary/90 shadow-lg" 
+                        onClick={nextStep}
+                        disabled={isTransitioning}
+                      >
                         {bookingI18n.form.next}
                         <ArrowRight className="ml-2 h-6 w-6" />
                       </Button>
                     ) : (
-                      <Button type="submit" className="flex-1 h-14 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700 shadow-lg" disabled={form.formState.isSubmitting}>
+                      <Button 
+                        key="submit-booking"
+                        type="submit" 
+                        className="flex-1 h-14 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700 shadow-lg" 
+                        disabled={form.formState.isSubmitting || isTransitioning}
+                      >
                         {form.formState.isSubmitting ? (
                           <div className="flex items-center gap-3">
                             <Loader2 className="animate-spin h-6 w-6" />
