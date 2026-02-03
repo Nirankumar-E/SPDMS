@@ -2,17 +2,19 @@ import Image from 'next/image';
 import React from 'react';
 
 const GovernmentEmblem = ({ className }: { className?: string }) => {
-  const containerClassName = `relative ${className || ''}`;
+  // Ensure the container is relative for the 'fill' property to work
+  const containerClassName = `relative flex items-center justify-center ${className || ''}`;
 
   return (
     <div className={containerClassName}>
       <Image
         src="/logo.png"
-        alt="Portal Logo"
+        alt="TN-PDS Logo"
         fill
-        sizes="256px"
-        style={{ objectFit: 'contain' }}
+        sizes="(max-width: 768px) 100vw, 256px"
+        className="object-contain"
         priority
+        unoptimized
       />
     </div>
   );
