@@ -27,10 +27,16 @@ service cloud.firestore {
     }
 
     match /fps_slots/{slotId} {
-      // Slot availability is public information to avoid auth-related race conditions during dashboard loading
+      // Slot availability is public information
       allow read: if true;
-      // Only authenticated users can update slot counts when performing a booking
+      // Only authenticated users can update slot counts
       allow write: if isSignedIn();
+    }
+
+    match /shops/{fpsCode} {
+      // Shop details are public to help citizens find their location
+      allow read: if true;
+      allow write: if false;
     }
   }
 }

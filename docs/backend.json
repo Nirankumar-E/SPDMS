@@ -110,6 +110,26 @@
         "count": { "type": "number", "description": "Number of citizens who have booked this slot." }
       },
       "required": ["count"]
+    },
+    "Shop": {
+      "title": "Shop",
+      "type": "object",
+      "description": "Represents a Fair Price Shop location and details.",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "district": { "type": "string" },
+        "timings": {
+          "type": "object",
+          "properties": {
+            "weekdays": { "type": "string" },
+            "weekends": { "type": "string" }
+          }
+        }
+      },
+      "required": ["name", "address", "latitude", "longitude"]
     }
   },
   "auth": {
@@ -169,6 +189,22 @@
             {
               "name": "slotId",
               "description": "Unique identifier for the shop's slot on a specific day."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/shops/{fpsCode}",
+        "definition": {
+          "entityName": "Shop",
+          "schema": {
+            "$ref": "#/backend/entities/Shop"
+          },
+          "description": "Stores details and locations for Fair Price Shops.",
+          "params": [
+            {
+              "name": "fpsCode",
+              "description": "The unique code of the Fair Price Shop."
             }
           ]
         }
