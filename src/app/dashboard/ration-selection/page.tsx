@@ -33,7 +33,8 @@ import {
   CreditCard,
   Info,
   Loader2,
-  Download
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -81,7 +82,7 @@ export default function RationSelectionPage() {
 
   const [step, setStep] = useState<Step>('appointment');
   const [selectedItems, setSelectedItems] = useState<Record<string, { enabled: boolean; quantity: number }>>({});
-  const [generatedQR, setGeneratedQR] = useState<string | null>(null);
+  const [generatedQRUrl, setGeneratedQRUrl] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const prices: Record<string, number> = {
@@ -197,23 +198,14 @@ export default function RationSelectionPage() {
       const bookingDocRef = doc(bookingsColRef);
       const bookingId = bookingDocRef.id;
 
-      // Real-time verification URL (relative for display, absolute in QR)
+      // Real-time verification URL (absolute)
       const verifyUrl = `${window.location.origin}/verify-booking/${citizen.id}/${bookingId}`;
 
       const paymentStatus = data.paymentMethod === 'upi' ? 'Completed' : 'Pending';
 
-      const qrContent = JSON.stringify({
-        bookingId,
-        citizenId: citizen.id,
-        name: citizen.name,
-        date: dateStr,
-        slot: data.timeSlot,
-        items: finalItems,
-        total: totalAmount,
-        payment: data.paymentMethod,
-        paymentStatus,
-        verifyUrl
-      });
+      // We encode JUST the verify URL to make the QR truly dynamic
+      // This way, scanning it always fetches the latest data from the DB
+      const qrData = verifyUrl;
 
       setDoc(bookingDocRef, {
         date: dateStr,
@@ -223,7 +215,7 @@ export default function RationSelectionPage() {
         items: finalItems,
         paymentMethod: data.paymentMethod,
         totalAmount,
-        qrData: qrContent,
+        qrData: qrData,
         createdAt: serverTimestamp()
       }).catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -237,12 +229,12 @@ export default function RationSelectionPage() {
             items: finalItems,
             paymentMethod: data.paymentMethod,
             totalAmount,
-            qrData: qrContent
+            qrData: qrData
           }
         }));
       });
 
-      setGeneratedQR(qrContent);
+      setGeneratedQRUrl(verifyUrl);
       setStep('qr');
       toast({
         title: bookingI18n.success.title,
@@ -529,12 +521,12 @@ export default function RationSelectionPage() {
                   </div>
                 )}
 
-                {step === 'qr' && generatedQR && (
+                {step === 'qr' && generatedQRUrl && (
                   <div className="flex flex-col items-center justify-center space-y-8 py-8 animate-in zoom-in-95 duration-700">
                     <div className="relative">
                       <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-150" />
                       <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-8 border-primary relative z-10 transform hover:scale-105 transition-transform">
-                        <QRCodeSVG id="collection-qr-code" value={generatedQR} size={220} level="H" includeMargin />
+                        <QRCodeSVG id="collection-qr-code" value={generatedQRUrl} size={220} level="H" includeMargin />
                       </div>
                     </div>
                     <div className="text-center space-y-3">
@@ -543,8 +535,9 @@ export default function RationSelectionPage() {
                         {bookingI18n.success.title}
                       </div>
                       <p className="text-gray-500 font-medium max-w-sm">{bookingI18n.form.qrInstructions}</p>
-                      <div className="p-3 bg-gray-50 rounded-xl border text-xs font-mono text-gray-400 break-all select-all">
-                        {JSON.parse(generatedQR).verifyUrl}
+                      <div className="p-3 bg-gray-50 rounded-xl border text-xs font-mono text-gray-400 break-all select-all flex items-center gap-2">
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                        {generatedQRUrl}
                       </div>
                     </div>
                     <div className="w-full max-w-sm space-y-4 pt-4">

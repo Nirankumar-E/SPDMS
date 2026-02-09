@@ -14,7 +14,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMemo } from 'react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 
 export default function MyQRCodesPage() {
   const { citizen } = useDashboard();
@@ -52,7 +52,7 @@ export default function MyQRCodesPage() {
         ) : bookings && bookings.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {bookings.map((booking: any) => (
-              <Card key={booking.id} className="shadow-lg hover:shadow-xl transition-all border-l-4 border-primary rounded-2xl overflow-hidden">
+              <Card key={booking.id} className="shadow-lg hover:shadow-xl transition-all border-l-4 border-primary rounded-2xl overflow-hidden bg-white">
                 <CardHeader className="pb-2 bg-primary/5">
                    <div className="flex justify-between items-start">
                     <div className="space-y-1">
@@ -80,10 +80,11 @@ export default function MyQRCodesPage() {
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
                   <div className="flex justify-center bg-white p-4 rounded-3xl border-2 border-dashed border-gray-100 shadow-inner group relative">
+                    {/* The QR data is the verification URL, making it dynamic */}
                     <QRCodeSVG value={booking.qrData} size={140} level="H" />
                     <div className="absolute inset-0 bg-white/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-3xl">
-                       <Button size="sm" variant="outline" className="rounded-full shadow-lg" asChild>
-                          <Link href={`/verify-booking/${citizen.id}/${booking.id}`} target="_blank">
+                       <Button size="sm" variant="default" className="rounded-full shadow-lg" asChild>
+                          <Link href={`/verify-booking/${citizen.id}/${booking.id}`}>
                              <ExternalLink className="h-3 w-3 mr-1" />
                              {qrI18n.verification}
                           </Link>
