@@ -34,7 +34,8 @@ import {
   Info,
   Loader2,
   Download,
-  ExternalLink
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -53,6 +54,9 @@ import Header from '@/components/layout/header';
 import { QRCodeSVG } from 'qrcode.react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+
+// Razorpay Test Key - Replace with your own in production
+const RZP_KEY_ID = "rzp_test_placeholder"; 
 
 const TIME_SLOTS = [
   "09:00 AM - 10:00 AM",
@@ -84,6 +88,18 @@ export default function RationSelectionPage() {
   const [selectedItems, setSelectedItems] = useState<Record<string, { enabled: boolean; quantity: number }>>({});
   const [generatedQRUrl, setGeneratedQRUrl] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // Load Razorpay Script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   const prices: Record<string, number> = {
     rawRice: 0,
@@ -179,8 +195,7 @@ export default function RationSelectionPage() {
     }
   }, [citizen?.id, toast]);
 
-  const onSubmit = async (data: BookingFormValues) => {
-    if (step !== 'payment') return;
+  const completeBooking = async (data: BookingFormValues, transactionId?: string) => {
     if (!citizen || !firestore) return;
 
     try {
@@ -198,14 +213,8 @@ export default function RationSelectionPage() {
       const bookingDocRef = doc(bookingsColRef);
       const bookingId = bookingDocRef.id;
 
-      // Real-time verification URL (absolute)
       const verifyUrl = `${window.location.origin}/verify-booking/${citizen.id}/${bookingId}`;
-
       const paymentStatus = data.paymentMethod === 'upi' ? 'Completed' : 'Pending';
-
-      // We encode JUST the verify URL to make the QR truly dynamic
-      // This way, scanning it always fetches the latest data from the DB
-      const qrData = verifyUrl;
 
       setDoc(bookingDocRef, {
         date: dateStr,
@@ -215,7 +224,8 @@ export default function RationSelectionPage() {
         items: finalItems,
         paymentMethod: data.paymentMethod,
         totalAmount,
-        qrData: qrData,
+        transactionId: transactionId || null,
+        qrData: verifyUrl,
         createdAt: serverTimestamp()
       }).catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -229,7 +239,8 @@ export default function RationSelectionPage() {
             items: finalItems,
             paymentMethod: data.paymentMethod,
             totalAmount,
-            qrData: qrData
+            transactionId: transactionId || null,
+            qrData: verifyUrl
           }
         }));
       });
@@ -248,6 +259,48 @@ export default function RationSelectionPage() {
         title: 'Booking Failed',
         description: error.message || bookingI18n.error,
       });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const onSubmit = async (data: BookingFormValues) => {
+    if (step !== 'payment') return;
+    if (!citizen) return;
+
+    if (data.paymentMethod === 'upi' && totalAmount > 0) {
+      setIsProcessingPayment(true);
+      
+      const options = {
+        key: RZP_KEY_ID,
+        amount: totalAmount * 100, // Amount in paise
+        currency: "INR",
+        name: "TN-PDS Portal",
+        description: "Ration Collection Payment",
+        image: "/logo.png",
+        handler: function (response: any) {
+          // On success, record booking
+          completeBooking(data, response.razorpay_payment_id);
+        },
+        prefill: {
+          name: citizen.name,
+          contact: citizen.registeredMobile,
+        },
+        theme: {
+          color: "#1e3a8a",
+        },
+        modal: {
+          ondismiss: function() {
+            setIsProcessingPayment(false);
+          }
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } else {
+      // Cash at counter or zero amount
+      completeBooking(data);
     }
   };
 
@@ -471,7 +524,10 @@ export default function RationSelectionPage() {
                       </div>
                       <CreditCard className="h-24 w-24 text-white/10 absolute -right-4 -bottom-4 transform rotate-12" />
                       <div className="text-right relative z-10">
-                        <Badge className="bg-white/20 hover:bg-white/30 text-white border-none py-2 px-4 rounded-full">Secure Transaction</Badge>
+                        <Badge className="bg-white/20 hover:bg-white/30 text-white border-none py-2 px-4 rounded-full flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3" />
+                          Secure Payment
+                        </Badge>
                       </div>
                     </div>
 
@@ -508,7 +564,7 @@ export default function RationSelectionPage() {
                                   <RadioGroupItem value="upi" id="upi" className="h-6 w-6" />
                                   <div>
                                     <div className="font-bold text-lg">{i18n.data.payments.upi}</div>
-                                    <p className="text-xs text-muted-foreground">BHIM, GPay, PhonePe, Paytm</p>
+                                    <p className="text-xs text-muted-foreground">Razorpay Secure: GPay, UPI, Cards</p>
                                   </div>
                                 </div>
                               </div>
@@ -518,6 +574,15 @@ export default function RationSelectionPage() {
                         </FormItem>
                       )}
                     />
+                    
+                    {form.watch('paymentMethod') === 'upi' && (
+                      <div className="bg-blue-50 p-4 rounded-2xl flex items-start gap-3 border border-blue-100">
+                        <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-blue-700 leading-relaxed font-medium">
+                          You will be redirected to Razorpay secure checkout. On successful payment, your ration collection QR will be generated instantly.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -559,7 +624,7 @@ export default function RationSelectionPage() {
                 {step !== 'qr' && (
                   <div className="flex items-center gap-6 pt-8">
                     {step !== 'appointment' && (
-                      <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl text-lg font-bold text-gray-500" onClick={prevStep} disabled={isTransitioning}>
+                      <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl text-lg font-bold text-gray-500" onClick={prevStep} disabled={isTransitioning || isProcessingPayment}>
                         <ArrowLeft className="mr-2 h-6 w-6" />
                         {bookingI18n.form.back}
                       </Button>
@@ -580,18 +645,21 @@ export default function RationSelectionPage() {
                       <Button 
                         key="submit-booking"
                         type="submit" 
-                        className="flex-1 h-14 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700 shadow-lg" 
-                        disabled={form.formState.isSubmitting || isTransitioning}
+                        className={cn(
+                          "flex-1 h-14 rounded-2xl text-lg font-bold shadow-lg",
+                          form.watch('paymentMethod') === 'upi' ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"
+                        )} 
+                        disabled={form.formState.isSubmitting || isTransitioning || isProcessingPayment}
                       >
-                        {form.formState.isSubmitting ? (
+                        {form.formState.isSubmitting || isProcessingPayment ? (
                           <div className="flex items-center gap-3">
                             <Loader2 className="animate-spin h-6 w-6" />
-                            {bookingI18n.form.submitting}
+                            {form.watch('paymentMethod') === 'upi' ? "Processing Payment..." : bookingI18n.form.submitting}
                           </div>
                         ) : (
                           <div className="flex items-center gap-3">
-                            <CheckCircle className="h-6 w-6" />
-                            {bookingI18n.form.submit}
+                            {form.watch('paymentMethod') === 'upi' ? <ShieldCheck className="h-6 w-6" /> : <CheckCircle className="h-6 w-6" />}
+                            {form.watch('paymentMethod') === 'upi' ? "Pay and Confirm" : bookingI18n.form.submit}
                           </div>
                         )}
                       </Button>
@@ -605,7 +673,7 @@ export default function RationSelectionPage() {
              <CardFooter className="bg-gray-50 p-6 flex justify-center text-center">
                 <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
                   <Info className="h-4 w-4" />
-                  <p>Items selected here are final and will be reserved for your chosen date.</p>
+                  <p>Transactions are secured via Razorpay SSL Encryption.</p>
                 </div>
              </CardFooter>
           )}
