@@ -84,6 +84,10 @@
           "type": "string",
           "description": "The status of the booking (e.g., Booked, Collected)."
         },
+        "paymentStatus": {
+          "type": "string",
+          "description": "The status of the payment (e.g., Completed, Pending)."
+        },
         "items": {
           "type": "array",
           "items": {
@@ -100,7 +104,7 @@
         "qrData": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["date", "timeSlot", "status", "paymentMethod"]
+      "required": ["date", "timeSlot", "status", "paymentMethod", "paymentStatus"]
     },
     "SlotTracking": {
       "title": "SlotTracking",

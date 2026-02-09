@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useDashboard } from '../layout';
@@ -5,7 +6,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import Header from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { QrCode, ArrowLeft, Calendar, Clock, ShoppingBag, CreditCard, Inbox, ShoppingCart } from 'lucide-react';
+import { QrCode, ArrowLeft, Calendar, Clock, ShoppingBag, CreditCard, Inbox, ShoppingCart, CheckCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
@@ -64,14 +65,30 @@ export default function MyQRCodesPage() {
                         {booking.timeSlot}
                       </CardDescription>
                     </div>
-                    <Badge variant={booking.status === 'Booked' ? 'default' : 'secondary'} className="rounded-full">
-                      {booking.status}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant={booking.status === 'Booked' ? 'default' : 'secondary'} className="rounded-full">
+                        {booking.status}
+                      </Badge>
+                      <Badge variant="outline" className={cn(
+                        "text-[10px] py-0",
+                        booking.paymentStatus === 'Completed' ? "text-green-600 border-green-200" : "text-amber-600 border-amber-200"
+                      )}>
+                        {i18n.data.paymentStatus[booking.paymentStatus] || booking.paymentStatus}
+                      </Badge>
+                    </div>
                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
-                  <div className="flex justify-center bg-white p-4 rounded-3xl border-2 border-dashed border-gray-100 shadow-inner">
+                  <div className="flex justify-center bg-white p-4 rounded-3xl border-2 border-dashed border-gray-100 shadow-inner group relative">
                     <QRCodeSVG value={booking.qrData} size={140} level="H" />
+                    <div className="absolute inset-0 bg-white/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-3xl">
+                       <Button size="sm" variant="outline" className="rounded-full shadow-lg" asChild>
+                          <Link href={`/verify-booking/${citizen.id}/${booking.id}`} target="_blank">
+                             <ExternalLink className="h-3 w-3 mr-1" />
+                             {qrI18n.verification}
+                          </Link>
+                       </Button>
+                    </div>
                   </div>
                   
                   <div className="space-y-2 text-sm border-t pt-4">

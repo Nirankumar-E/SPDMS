@@ -179,7 +179,6 @@ export default function RationSelectionPage() {
   }, [citizen?.id, toast]);
 
   const onSubmit = async (data: BookingFormValues) => {
-    // CRITICAL: Verify we are actually on the payment step before allowing submission
     if (step !== 'payment') return;
     if (!citizen || !firestore) return;
 
@@ -194,22 +193,33 @@ export default function RationSelectionPage() {
           unit: 'Kg'
         }));
 
+      const bookingsColRef = collection(firestore, 'citizens', citizen.id, 'bookings');
+      const bookingDocRef = doc(bookingsColRef);
+      const bookingId = bookingDocRef.id;
+
+      // Real-time verification URL (relative for display, absolute in QR)
+      const verifyUrl = `${window.location.origin}/verify-booking/${citizen.id}/${bookingId}`;
+
+      const paymentStatus = data.paymentMethod === 'upi' ? 'Completed' : 'Pending';
+
       const qrContent = JSON.stringify({
-        cardId: citizen.id,
+        bookingId,
+        citizenId: citizen.id,
+        name: citizen.name,
         date: dateStr,
         slot: data.timeSlot,
         items: finalItems,
         total: totalAmount,
-        payment: data.paymentMethod
+        payment: data.paymentMethod,
+        paymentStatus,
+        verifyUrl
       });
 
-      const bookingsColRef = collection(firestore, 'citizens', citizen.id, 'bookings');
-      const bookingDocRef = doc(bookingsColRef);
-      
       setDoc(bookingDocRef, {
         date: dateStr,
         timeSlot: data.timeSlot,
         status: 'Booked',
+        paymentStatus,
         items: finalItems,
         paymentMethod: data.paymentMethod,
         totalAmount,
@@ -223,6 +233,7 @@ export default function RationSelectionPage() {
             date: dateStr,
             timeSlot: data.timeSlot,
             status: 'Booked',
+            paymentStatus,
             items: finalItems,
             paymentMethod: data.paymentMethod,
             totalAmount,
@@ -532,6 +543,9 @@ export default function RationSelectionPage() {
                         {bookingI18n.success.title}
                       </div>
                       <p className="text-gray-500 font-medium max-w-sm">{bookingI18n.form.qrInstructions}</p>
+                      <div className="p-3 bg-gray-50 rounded-xl border text-xs font-mono text-gray-400 break-all select-all">
+                        {JSON.parse(generatedQR).verifyUrl}
+                      </div>
                     </div>
                     <div className="w-full max-w-sm space-y-4 pt-4">
                       <Button 

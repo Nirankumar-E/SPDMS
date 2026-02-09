@@ -218,6 +218,7 @@ export interface DataTranslations {
   relations: Record<string, string>;
   genders: Record<string, string>;
   payments: Record<string, string>;
+  paymentStatus: Record<string, string>;
 }
 
 export interface QRHistoryTranslations {
@@ -226,6 +227,19 @@ export interface QRHistoryTranslations {
   viewDetails: string;
   noHistory: string;
   bookingDetails: string;
+  verification: string;
+  paymentStatus: string;
+}
+
+export interface VerificationTranslations {
+  title: string;
+  subtitle: string;
+  purchaserInfo: string;
+  itemsDetails: string;
+  paymentDetails: string;
+  verifiedStatus: string;
+  notFound: string;
+  loading: string;
 }
 
 interface Translations {
@@ -245,6 +259,7 @@ interface Translations {
   homeLoggedIn: HomeLoggedInTranslations;
   data: DataTranslations;
   qrHistory: QRHistoryTranslations;
+  verification: VerificationTranslations;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -470,6 +485,10 @@ export const translations: Record<Language, Translations> = {
         cash: 'கடைக்கவுண்டரில் ரொக்கம்',
         upi: 'UPI கட்டணம்',
       },
+      paymentStatus: {
+        Pending: 'நிலுவையில் உள்ளது',
+        Completed: 'முடிந்தது',
+      },
     },
     qrHistory: {
       title: 'எனது QR குறியீடுகள்',
@@ -477,6 +496,18 @@ export const translations: Record<Language, Translations> = {
       viewDetails: 'விவரங்களைக் காண்க',
       noHistory: 'முன்பதிவு வரலாறு எதுவும் இல்லை.',
       bookingDetails: 'முன்பதிவு விவரங்கள்',
+      verification: 'சரிபார்ப்பு',
+      paymentStatus: 'கட்டண நிலை',
+    },
+    verification: {
+      title: 'முன்பதிவு சரிபார்ப்பு',
+      subtitle: 'ரேஷன் சேகரிப்புக்கான நிகழ்நேர விவரங்கள்',
+      purchaserInfo: 'வாங்குபவர் விவரங்கள்',
+      itemsDetails: 'பொருட்கள் விவரம்',
+      paymentDetails: 'கட்டண விவரங்கள்',
+      verifiedStatus: 'சரிபார்க்கப்பட்டது',
+      notFound: 'முன்பதிவு காணப்படவில்லை',
+      loading: 'சரிபார்க்கப்படுகிறது...',
     },
   },
   EN: {
@@ -701,6 +732,10 @@ export const translations: Record<Language, Translations> = {
         cash: 'Cash at Counter',
         upi: 'UPI Payment',
       },
+      paymentStatus: {
+        Pending: 'Pending',
+        Completed: 'Completed',
+      },
     },
     qrHistory: {
       title: 'My QR Codes',
@@ -708,6 +743,18 @@ export const translations: Record<Language, Translations> = {
       viewDetails: 'View Details',
       noHistory: 'No booking history found.',
       bookingDetails: 'Booking Details',
+      verification: 'Verification',
+      paymentStatus: 'Payment Status',
+    },
+    verification: {
+      title: 'Booking Verification',
+      subtitle: 'Real-time details for ration collection',
+      purchaserInfo: 'Purchaser Info',
+      itemsDetails: 'Items Details',
+      paymentDetails: 'Payment Details',
+      verifiedStatus: 'Verified',
+      notFound: 'Booking not found',
+      loading: 'Verifying...',
     },
   },
 };
