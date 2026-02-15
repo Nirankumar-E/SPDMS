@@ -11,10 +11,10 @@ export function cn(...inputs: ClassValue[]) {
  * regardless of environment encoding or locale-specific fallback issues.
  */
 export function formatCurrency(amount: number): string {
-  const formattedNumber = new Intl.NumberFormat('en-IN', {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
-  
-  return `\u20B9${formattedNumber}`;
 }

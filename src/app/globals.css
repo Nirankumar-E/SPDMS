@@ -8,6 +8,7 @@ body {
 
 @layer base {
   :root {
+    --font-body: "Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     --background: 120 60% 97%;
     --foreground: 224 71.4% 4.1%;
     --card: 120 60% 97%;
