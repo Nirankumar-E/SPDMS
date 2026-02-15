@@ -62,8 +62,11 @@ const TIME_SLOTS = [
   "09:00 AM - 10:00 AM",
   "10:00 AM - 11:00 AM",
   "11:00 AM - 12:00 PM",
+  "12:00 PM - 01:00 PM",
   "02:00 PM - 03:00 PM",
-  "03:00 PM - 04:00 PM"
+  "03:00 PM - 04:00 PM",
+  "04:00 PM - 05:00 PM",
+  "05:00 PM - 06:00 PM"
 ];
 
 const bookingSchema = z.object({
@@ -469,12 +472,14 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
       value={slot}
       disabled={isFull}
     >
-      <div className="flex justify-between w-full">
-        <span>{slot}</span>
-        <span className="text-xs text-gray-400">
-          {booked}/{max} {isFull && "(Full)"}
-        </span>
-      </div>
+      <div className="flex items-center w-full">
+  <span className="whitespace-nowrap">{slot}</span>
+
+  <span className="ml-auto text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500 font-semibold">
+    {booked}/{max}
+    {isFull && " Full"}
+  </span>
+</div>
     </SelectItem>
   );
 })}
