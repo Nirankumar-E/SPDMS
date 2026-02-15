@@ -208,42 +208,29 @@ export default function RationSelectionPage() {
           quantity: val.quantity,
           unit: 'Kg'
         }));
+const response = await fetch("/api/book-slot", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    citizenId: citizen.id,
+    date: dateStr,
+    timeSlot: data.timeSlot,
+    items: finalItems,
+    paymentMethod: data.paymentMethod,
+    totalAmount,
+    transactionId: transactionId || null
+  }),
+});
 
-      const bookingsColRef = collection(firestore, 'citizens', citizen.id, 'bookings');
-      const bookingDocRef = doc(bookingsColRef);
-      const bookingId = bookingDocRef.id;
+const result = await response.json();
 
-      const verifyUrl = `${window.location.origin}/verify-booking/${citizen.id}/${bookingId}`;
-      const paymentStatus = data.paymentMethod === 'upi' ? 'Completed' : 'Pending';
+if (!result.success) {
+  throw new Error(result.message || "Booking failed");
+}
 
-      setDoc(bookingDocRef, {
-        date: dateStr,
-        timeSlot: data.timeSlot,
-        status: 'Booked',
-        paymentStatus,
-        items: finalItems,
-        paymentMethod: data.paymentMethod,
-        totalAmount,
-        transactionId: transactionId || null,
-        qrData: verifyUrl,
-        createdAt: serverTimestamp()
-      }).catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: bookingDocRef.path,
-          operation: 'create',
-          requestResourceData: {
-            date: dateStr,
-            timeSlot: data.timeSlot,
-            status: 'Booked',
-            paymentStatus,
-            items: finalItems,
-            paymentMethod: data.paymentMethod,
-            totalAmount,
-            transactionId: transactionId || null,
-            qrData: verifyUrl
-          }
-        }));
-      });
+const verifyUrl = result.verifyUrl;
 
       setGeneratedQRUrl(verifyUrl);
       setStep('qr');
