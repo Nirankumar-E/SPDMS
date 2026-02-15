@@ -89,6 +89,7 @@ export default function RationSelectionPage() {
   const [generatedQRUrl, setGeneratedQRUrl] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [slotData, setSlotData] = useState<any[]>([]);
 
   // Load Razorpay Script
   useEffect(() => {
@@ -101,6 +102,31 @@ export default function RationSelectionPage() {
     };
   }, []);
 
+  const form = useForm<BookingFormValues>({
+    resolver: zodResolver(bookingSchema),
+    defaultValues: {
+      paymentMethod: 'cash',
+    }
+  });
+
+  const selectedDate = form.watch('date');
+
+  useEffect(() => {
+    if (!selectedDate) return;
+
+    const fetchSlots = async () => {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const res = await fetch(`/api/get-slots?date=${dateStr}`);
+      const data = await res.json();
+
+      if (data.success) {
+        setSlotData(data.slots);
+      }
+    };
+
+    fetchSlots();
+  }, [selectedDate]);
+
   const prices: Record<string, number> = {
     rawRice: 0,
     boiledRice: 0,
@@ -110,14 +136,6 @@ export default function RationSelectionPage() {
     toorDal: 30
   };
 
-  const form = useForm<BookingFormValues>({
-    resolver: zodResolver(bookingSchema),
-    defaultValues: {
-      paymentMethod: 'cash',
-    }
-  });
-
-  const selectedDate = form.watch('date');
 
   const normalizedAllocation = useMemo(() => {
     if (!citizen?.rationAllocation) return {};
@@ -301,6 +319,18 @@ const verifyUrl = result.verifyUrl;
         form.trigger(['date', 'timeSlot']);
         return;
       }
+      const dateStr = format(date, 'yyyy-MM-dd');
+const slotId = `${dateStr}_${slot}`;
+const slotInfo = slotData.find((s) => s.id === slotId);
+
+if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
+  toast({
+    variant: "destructive",
+    title: "Slot Full",
+    description: "Please select another time slot.",
+  });
+  return;
+}
       setIsTransitioning(true);
       setStep('items');
       setTimeout(() => setIsTransitioning(false), 300);
@@ -423,11 +453,31 @@ const verifyUrl = result.verifyUrl;
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent className="rounded-2xl">
-                                {TIME_SLOTS.map((slot) => (
-                                    <SelectItem key={slot} value={slot}>
-                                        {slot}
-                                    </SelectItem>
-                                ))}
+                                {TIME_SLOTS.map((slot) => {
+  const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
+  const slotId = `${dateStr}_${slot}`;
+
+  const slotInfo = slotData.find((s) => s.id === slotId);
+
+  const booked = slotInfo?.bookedCount || 0;
+  const max = slotInfo?.maxCapacity || 16;
+  const isFull = booked >= max;
+
+  return (
+    <SelectItem
+      key={slot}
+      value={slot}
+      disabled={isFull}
+    >
+      <div className="flex justify-between w-full">
+        <span>{slot}</span>
+        <span className="text-xs text-gray-400">
+          {booked}/{max} {isFull && "(Full)"}
+        </span>
+      </div>
+    </SelectItem>
+  );
+})}
                               </SelectContent>
                             </Select>
                             <FormMessage />
