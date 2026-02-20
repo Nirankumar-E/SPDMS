@@ -19,6 +19,10 @@
           "type": "string",
           "description": "The district where the card is registered."
         },
+        "taluk": {
+          "type": "string",
+          "description": "The taluk where the card is registered."
+        },
         "registeredMobile": {
           "type": "string",
           "description": "The mobile number registered with the smart card."
