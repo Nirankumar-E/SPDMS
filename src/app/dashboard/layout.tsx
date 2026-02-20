@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
@@ -13,6 +14,7 @@ interface CitizenDocument {
   cardType: string;
   fpsCode: string;
   district: string;
+  taluk?: string;
   profileCompleted: boolean;
   familyMembers: { id: string; name: string; age: number; gender: string; relation: string }[];
   rationAllocation: { [key: string]: string };
