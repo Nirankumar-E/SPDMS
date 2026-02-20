@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/firebase';
@@ -11,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import GovernmentEmblem from '@/components/icons/government-emblem';
-import { LogOut, Users, FileText, MapPin, HomeIcon } from 'lucide-react';
+import { LogOut, Users, FileText, MapPin, HomeIcon, Milestone } from 'lucide-react';
 import { useDashboard } from './layout';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -62,9 +63,9 @@ export default function DashboardPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
                 <div className='flex items-center gap-2 p-2 bg-white rounded border'>
-                  <FileText className='h-4 w-4 text-primary'/> 
+                  <FileText className='h-4 w-4 text-primary shrink-0'/> 
                   <span className='text-muted-foreground'>{profileI18n.cardNumber}:</span> 
                   <span className='font-medium'>{citizen.id}</span>
                 </div>
@@ -72,12 +73,17 @@ export default function DashboardPage() {
                   <Badge variant="outline" className="bg-primary/5">{citizen.cardType}</Badge>
                 </div>
                 <div className='flex items-center gap-2 p-2 bg-white rounded border'>
-                  <MapPin className='h-4 w-4 text-primary'/> 
+                  <MapPin className='h-4 w-4 text-primary shrink-0'/> 
                   <span className='text-muted-foreground'>{profileI18n.district}:</span> 
                   <span className='font-medium'>{citizen.district}</span>
                 </div>
                 <div className='flex items-center gap-2 p-2 bg-white rounded border'>
-                  <HomeIcon className='h-4 w-4 text-primary'/> 
+                  <Milestone className='h-4 w-4 text-primary shrink-0'/> 
+                  <span className='text-muted-foreground'>{profileI18n.taluk}:</span> 
+                  <span className='font-medium'>{citizen.taluk || profileI18n.notAvailable}</span>
+                </div>
+                <div className='flex items-center gap-2 p-2 bg-white rounded border'>
+                  <HomeIcon className='h-4 w-4 text-primary shrink-0'/> 
                   <span className='text-muted-foreground'>{profileI18n.fpsCode}:</span> 
                   <span className='font-medium'>{citizen.fpsCode}</span>
                 </div>
