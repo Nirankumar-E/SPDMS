@@ -7,12 +7,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useDashboard } from '../layout';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { 
   collection, 
   serverTimestamp, 
   doc, 
-  setDoc
+  runTransaction,
+  query,
+  where
 } from 'firebase/firestore';
 import {
   Card,
@@ -20,7 +22,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,11 +32,11 @@ import {
   ArrowLeft, 
   ArrowRight,
   CreditCard,
-  Info,
   Loader2,
   Download,
-  ExternalLink,
-  ShieldCheck
+  Clock,
+  Users,
+  Activity
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -52,21 +53,16 @@ import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
 import Header from '@/components/layout/header';
 import { QRCodeSVG } from 'qrcode.react';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
-// Razorpay Test Key - Replace with your own in production
 const RZP_KEY_ID = "rzp_test_placeholder"; 
+const MAX_SLOT_CAPACITY = 16;
 
 const TIME_SLOTS = [
   "09:00 AM - 10:00 AM",
   "10:00 AM - 11:00 AM",
   "11:00 AM - 12:00 PM",
-  "12:00 PM - 01:00 PM",
   "02:00 PM - 03:00 PM",
-  "03:00 PM - 04:00 PM",
-  "04:00 PM - 05:00 PM",
-  "05:00 PM - 06:00 PM"
+  "03:00 PM - 04:00 PM"
 ];
 
 const bookingSchema = z.object({
@@ -82,7 +78,6 @@ type Step = 'appointment' | 'items' | 'payment' | 'qr';
 export default function RationSelectionPage() {
   const { citizen } = useDashboard();
   const firestore = useFirestore();
-  const router = useRouter();
   const { toast } = useToast();
   const { i18n } = useLanguage();
   const bookingI18n = i18n.booking;
@@ -92,18 +87,7 @@ export default function RationSelectionPage() {
   const [generatedQRUrl, setGeneratedQRUrl] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [slotData, setSlotData] = useState<any[]>([]);
-
-  // Load Razorpay Script
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+  const [perfMetrics, setPerfMetrics] = useState<{ startTime: number; endTime: number } | null>(null);
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
@@ -114,37 +98,55 @@ export default function RationSelectionPage() {
 
   const selectedDate = form.watch('date');
 
-  useEffect(() => {
-    if (!selectedDate) return;
+  const slotCountsQuery = useMemoFirebase(() => {
+    if (!firestore || !citizen?.fpsCode || !selectedDate) return null;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return query(
+      collection(firestore, 'fps_slots'),
+      where('__name__', '>=', `${citizen.fpsCode}_${dateStr}_`),
+      where('__name__', '<=', `${citizen.fpsCode}_${dateStr}_\uf8ff`)
+    );
+  }, [firestore, citizen?.fpsCode, selectedDate]);
 
-    const fetchSlots = async () => {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const res = await fetch(`/api/get-slots?date=${dateStr}`);
-      const data = await res.json();
+  const { data: slotCounts } = useCollection(slotCountsQuery);
 
-      if (data.success) {
-        setSlotData(data.slots);
-      }
+  const getSlotStatus = useCallback((slot: string) => {
+    if (!slotCounts || !selectedDate || !citizen?.fpsCode) return { count: 0, isFull: false };
+    const idx = TIME_SLOTS.indexOf(slot);
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const slotId = `${citizen.fpsCode}_${dateStr}_${idx}`;
+    const slotDoc = slotCounts.find(s => s.id === slotId);
+    const count = slotDoc?.count || 0;
+    return {
+      count,
+      isFull: count >= MAX_SLOT_CAPACITY
     };
+  }, [slotCounts, selectedDate, citizen?.fpsCode]);
 
-    fetchSlots();
-  }, [selectedDate]);
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('razorpay-sdk')) return;
+    const script = document.createElement('script');
+    script.id = 'razorpay-sdk';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
 
   const prices: Record<string, number> = {
     rawRice: 0,
     boiledRice: 0,
-    wheat: 0,
+    wheat: 2,
     sugar: 25,
     palmOil: 25,
     toorDal: 30
   };
 
-
   const normalizedAllocation = useMemo(() => {
     if (!citizen?.rationAllocation) return {};
     const alloc = { ...citizen.rationAllocation };
     if (alloc.rice) {
-      const totalRice = parseInt(alloc.rice as string) || 20;
+      const totalRice = parseFloat(alloc.rice as string) || 20;
       alloc.rawRice = `${Math.floor(totalRice/2)} Kg`;
       alloc.boiledRice = `${Math.ceil(totalRice/2)} Kg`;
       delete alloc.rice;
@@ -156,7 +158,7 @@ export default function RationSelectionPage() {
     if (Object.keys(normalizedAllocation).length > 0 && Object.keys(selectedItems).length === 0) {
       const initial: Record<string, any> = {};
       Object.entries(normalizedAllocation).forEach(([key, val]) => {
-        const qty = parseInt((val as string).split(' ')[0]) || 0;
+        const qty = parseFloat((val as string).split(' ')[0]) || 0;
         initial[key] = { enabled: true, quantity: qty };
       });
       setSelectedItems(initial);
@@ -174,21 +176,12 @@ export default function RationSelectionPage() {
 
   const handleDownloadQR = useCallback(() => {
     const svg = document.getElementById('collection-qr-code') as unknown as SVGGraphicsElement;
-    if (!svg) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "QR code element not found."
-      });
-      return;
-    }
-
+    if (!svg) return;
     try {
       const svgData = new XMLSerializer().serializeToString(svg);
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
-
       img.onload = () => {
         const scaleFactor = 4;
         canvas.width = img.width * scaleFactor;
@@ -197,71 +190,78 @@ export default function RationSelectionPage() {
           ctx.fillStyle = 'white';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const pngFile = canvas.toDataURL('image/png');
           const downloadLink = document.createElement('a');
           downloadLink.download = `TN-PDS-QR-${citizen?.id || 'unknown'}.png`;
-          downloadLink.href = pngFile;
+          downloadLink.href = canvas.toDataURL('image/png');
           downloadLink.click();
         }
       };
-
       img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     } catch (err) {
       console.error("Download error:", err);
-      toast({
-        variant: "destructive",
-        title: "Download Failed",
-        description: "Could not generate the image file."
-      });
     }
-  }, [citizen?.id, toast]);
+  }, [citizen?.id]);
 
   const completeBooking = async (data: BookingFormValues, transactionId?: string) => {
     if (!citizen || !firestore) return;
+    const startTime = performance.now();
 
     try {
       const dateStr = format(data.date, 'yyyy-MM-dd');
+      const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
+      const slotId = `${citizen.fpsCode}_${dateStr}_${slotIndex}`;
+      const slotRef = doc(firestore, 'fps_slots', slotId);
       
       const finalItems = Object.entries(selectedItems)
         .filter(([_, val]) => val.enabled)
         .map(([key, val]) => ({
           name: key,
           quantity: val.quantity,
-          unit: 'Kg'
+          unit: (normalizedAllocation[key] as string).split(' ')[1] || 'Kg'
         }));
-const response = await fetch("/api/book-slot", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    citizenId: citizen.id,
-    date: dateStr,
-    timeSlot: data.timeSlot,
-    items: finalItems,
-    paymentMethod: data.paymentMethod,
-    totalAmount,
-    transactionId: transactionId || null
-  }),
-});
 
-const result = await response.json();
+      const bookingsColRef = collection(firestore, 'citizens', citizen.id, 'bookings');
+      const bookingDocRef = doc(bookingsColRef);
+      const bookingId = bookingDocRef.id;
 
-if (!result.success) {
-  throw new Error(result.message || "Booking failed");
-}
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const verifyUrl = `${origin}/verify-booking/${citizen.id}/${bookingId}`;
+      const paymentStatus = data.paymentMethod === 'upi' ? 'Completed' : 'Pending';
 
-const verifyUrl = result.verifyUrl;
+      await runTransaction(firestore, async (transaction) => {
+        const slotSnap = await transaction.get(slotRef);
+        const currentCount = slotSnap.exists() ? (slotSnap.data() as any).count : 0;
 
+        if (currentCount >= MAX_SLOT_CAPACITY) {
+          throw new Error('This slot is now full. Please select another time slot.');
+        }
+
+        transaction.set(slotRef, { count: currentCount + 1 }, { merge: true });
+
+        transaction.set(bookingDocRef, {
+          date: dateStr,
+          timeSlot: data.timeSlot,
+          status: 'Booked',
+          paymentStatus,
+          items: finalItems,
+          paymentMethod: data.paymentMethod,
+          totalAmount,
+          transactionId: transactionId || null,
+          qrData: verifyUrl,
+          createdAt: serverTimestamp()
+        });
+      });
+
+      const endTime = performance.now();
+      setPerfMetrics({ startTime, endTime });
       setGeneratedQRUrl(verifyUrl);
       setStep('qr');
       toast({
         title: bookingI18n.success.title,
-        description: bookingI18n.success.description,
+        description: `Booking processed in ${Math.round(endTime - startTime)}ms`,
       });
 
     } catch (error: any) {
-      console.error('Booking failed:', error);
       toast({
         variant: 'destructive',
         title: 'Booking Failed',
@@ -277,44 +277,41 @@ const verifyUrl = result.verifyUrl;
     if (!citizen) return;
 
     if (data.paymentMethod === 'upi' && totalAmount > 0) {
+      if (typeof window === 'undefined' || !(window as any).Razorpay) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Gateway Not Ready', 
+          description: 'Payment SDK is loading. Please wait.' 
+        });
+        return;
+      }
       setIsProcessingPayment(true);
       
       const options = {
         key: RZP_KEY_ID,
-        amount: totalAmount * 100, // Amount in paise
+        amount: Math.round(totalAmount * 100),
         currency: "INR",
         name: "TN-PDS Portal",
         description: "Ration Collection Payment",
-        image: "/logo.png",
-        handler: function (response: any) {
-          // On success, record booking
-          completeBooking(data, response.razorpay_payment_id);
-        },
-        prefill: {
-          name: citizen.name,
-          contact: citizen.registeredMobile,
-        },
-        theme: {
-          color: "#1e3a8a",
-        },
-        modal: {
-          ondismiss: function() {
-            setIsProcessingPayment(false);
-          }
-        }
+        handler: (response: any) => completeBooking(data, response.razorpay_payment_id),
+        prefill: { name: citizen.name, contact: citizen.registeredMobile },
+        theme: { color: "#1e3a8a" },
+        modal: { ondismiss: () => setIsProcessingPayment(false) }
       };
 
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
+      try {
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+      } catch (e) {
+        setIsProcessingPayment(false);
+      }
     } else {
-      // Cash at counter or zero amount
       completeBooking(data);
     }
   };
 
   const nextStep = () => {
     if (isTransitioning) return;
-    
     if (step === 'appointment') {
       const date = form.getValues('date');
       const slot = form.getValues('timeSlot');
@@ -322,18 +319,15 @@ const verifyUrl = result.verifyUrl;
         form.trigger(['date', 'timeSlot']);
         return;
       }
-      const dateStr = format(date, 'yyyy-MM-dd');
-const slotId = `${dateStr}_${slot}`;
-const slotInfo = slotData.find((s) => s.id === slotId);
-
-if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
-  toast({
-    variant: "destructive",
-    title: "Slot Full",
-    description: "Please select another time slot.",
-  });
-  return;
-}
+      const { isFull } = getSlotStatus(slot);
+      if (isFull) {
+        toast({
+          variant: 'destructive',
+          title: 'Slot Full',
+          description: 'This slot is full. Please pick another one.'
+        });
+        return;
+      }
       setIsTransitioning(true);
       setStep('items');
       setTimeout(() => setIsTransitioning(false), 300);
@@ -457,36 +451,33 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                               </FormControl>
                               <SelectContent className="rounded-2xl">
                                 {TIME_SLOTS.map((slot) => {
-  const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
-  const slotId = `${dateStr}_${slot}`;
-
-  const slotInfo = slotData.find((s) => s.id === slotId);
-
-  const booked = slotInfo?.bookedCount || 0;
-  const max = slotInfo?.maxCapacity || 16;
-  const isFull = booked >= max;
-
-  return (
-    <SelectItem
-      key={slot}
-      value={slot}
-      disabled={isFull}
-    >
-      <div className="flex items-center w-full">
-  <span className="whitespace-nowrap">{slot}</span>
-
-  <span className="ml-auto text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500 font-semibold">
-    {booked}/{max}
-    {isFull && " Full"}
-  </span>
-</div>
-    </SelectItem>
-  );
-})}
+                                  const { count, isFull } = getSlotStatus(slot);
+                                  return (
+                                    <SelectItem key={slot} value={slot} disabled={isFull}>
+                                        <div className="flex items-center justify-between w-full gap-4 py-0.5">
+                                          <div className="flex items-center gap-2">
+                                            <Clock className="h-4 w-4 text-primary" />
+                                            <span className="font-medium">{slot}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1.5 ml-auto">
+                                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <Badge 
+                                              variant={isFull ? "destructive" : "secondary"} 
+                                              className={cn(
+                                                "text-[10px] px-1.5 h-5 font-bold",
+                                                isFull && "bg-destructive/10 text-destructive border-destructive/20"
+                                              )}
+                                            >
+                                              {count}/{MAX_SLOT_CAPACITY}
+                                            </Badge>
+                                          </div>
+                                        </div>
+                                    </SelectItem>
+                                  );
+                                })}
                               </SelectContent>
                             </Select>
                             <FormMessage />
-                            {!selectedDate && <p className="text-[10px] text-muted-foreground font-medium">Select a date first.</p>}
                           </FormItem>
                         )}
                       />
@@ -502,7 +493,10 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                     </div>
                     <div className="grid grid-cols-1 gap-4">
                       {Object.entries(normalizedAllocation).map(([key, val]) => {
-                        const maxQty = parseInt((val as string).split(' ')[0]) || 0;
+                        const parts = (val as string).split(' ');
+                        const maxQty = parseFloat(parts[0]) || 0;
+                        const unit = parts[1] || 'Kg';
+                        
                         return (
                           <div key={key} className={cn(
                             "flex items-center justify-between p-5 rounded-3xl border-2 transition-all",
@@ -530,23 +524,21 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                                     type="number"
                                     min={0}
                                     max={maxQty}
+                                    step="0.01"
                                     value={selectedItems[key]?.quantity || 0}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') e.preventDefault();
-                                    }}
                                     onChange={(e) => {
-                                      const v = Math.min(maxQty, Math.max(0, parseInt(e.target.value) || 0));
+                                      const v = Math.min(maxQty, Math.max(0, parseFloat(e.target.value) || 0));
                                       setSelectedItems(prev => ({ ...prev, [key]: { ...prev[key], quantity: v } }));
                                     }}
                                     className="w-24 text-right h-12 rounded-xl font-bold pr-10 border-2"
                                     disabled={!selectedItems[key]?.enabled}
                                   />
-                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">Kg</span>
+                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">{unit}</span>
                                 </div>
-                                {prices[key] > 0 && (
+                                {prices[key] > 0 && key !== 'wheat' && (
                                   <div className="text-right w-20">
                                     <p className="text-xs text-muted-foreground">Price</p>
-                                    <p className="font-bold text-primary">{formatCurrency(prices[key])}/Kg</p>
+                                    <p className="font-bold text-primary">{formatCurrency(prices[key])}/{unit}</p>
                                   </div>
                                 )}
                             </div>
@@ -565,12 +557,6 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                         <h4 className="text-5xl font-bold">{formatCurrency(totalAmount)}</h4>
                       </div>
                       <CreditCard className="h-24 w-24 text-white/10 absolute -right-4 -bottom-4 transform rotate-12" />
-                      <div className="text-right relative z-10">
-                        <Badge className="bg-white/20 hover:bg-white/30 text-white border-none py-2 px-4 rounded-full flex items-center gap-1">
-                          <ShieldCheck className="h-3 w-3" />
-                          Secure Payment
-                        </Badge>
-                      </div>
                     </div>
 
                     <FormField
@@ -591,10 +577,7 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                               )} onClick={() => field.onChange('cash')}>
                                 <div className="flex items-center gap-4">
                                   <RadioGroupItem value="cash" id="cash" className="h-6 w-6" />
-                                  <div>
-                                    <div className="font-bold text-lg">{i18n.data.payments.cash}</div>
-                                    <p className="text-xs text-muted-foreground">Pay at the shop counter</p>
-                                  </div>
+                                  <div className="font-bold text-lg">{i18n.data.payments.cash}</div>
                                 </div>
                               </div>
 
@@ -604,10 +587,7 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                               )} onClick={() => field.onChange('upi')}>
                                 <div className="flex items-center gap-4">
                                   <RadioGroupItem value="upi" id="upi" className="h-6 w-6" />
-                                  <div>
-                                    <div className="font-bold text-lg">{i18n.data.payments.upi}</div>
-                                    <p className="text-xs text-muted-foreground">Razorpay Secure: GPay, UPI, Cards</p>
-                                  </div>
+                                  <div className="font-bold text-lg">{i18n.data.payments.upi}</div>
                                 </div>
                               </div>
                             </RadioGroup>
@@ -616,25 +596,13 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                         </FormItem>
                       )}
                     />
-                    
-                    {form.watch('paymentMethod') === 'upi' && (
-                      <div className="bg-blue-50 p-4 rounded-2xl flex items-start gap-3 border border-blue-100">
-                        <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-                        <p className="text-xs text-blue-700 leading-relaxed font-medium">
-                          You will be redirected to Razorpay secure checkout. On successful payment, your ration collection QR will be generated instantly.
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
 
                 {step === 'qr' && generatedQRUrl && (
                   <div className="flex flex-col items-center justify-center space-y-8 py-8 animate-in zoom-in-95 duration-700">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-150" />
-                      <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-8 border-primary relative z-10 transform hover:scale-105 transition-transform">
-                        <QRCodeSVG id="collection-qr-code" value={generatedQRUrl} size={220} level="H" includeMargin />
-                      </div>
+                    <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-8 border-primary relative z-10">
+                      <QRCodeSVG id="collection-qr-code" value={generatedQRUrl} size={220} level="H" includeMargin />
                     </div>
                     <div className="text-center space-y-3">
                       <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-6 py-2 rounded-full font-bold border border-green-100">
@@ -642,21 +610,19 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                         {bookingI18n.success.title}
                       </div>
                       <p className="text-gray-500 font-medium max-w-sm">{bookingI18n.form.qrInstructions}</p>
-                      <div className="p-3 bg-gray-50 rounded-xl border text-xs font-mono text-gray-400 break-all select-all flex items-center gap-2">
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                        {generatedQRUrl}
-                      </div>
+                      {perfMetrics && (
+                        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-widest font-bold pt-2">
+                           <Activity className="h-3 w-3" />
+                           Processed in {Math.round(perfMetrics.endTime - perfMetrics.startTime)}ms
+                        </div>
+                      )}
                     </div>
                     <div className="w-full max-w-sm space-y-4 pt-4">
-                      <Button 
-                        type="button" 
-                        className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-bold shadow-lg" 
-                        onClick={handleDownloadQR}
-                      >
+                      <Button type="button" className="w-full h-14 rounded-2xl text-lg font-bold" onClick={handleDownloadQR}>
                         <Download className="mr-3 h-6 w-6" />
                         {bookingI18n.form.downloadQR}
                       </Button>
-                      <Button type="button" variant="outline" className="w-full h-14 rounded-2xl text-lg font-bold border-2" asChild>
+                      <Button type="button" variant="outline" className="w-full h-14 rounded-2xl text-lg font-bold" asChild>
                         <Link href="/dashboard/my-qr-codes">View All QR Codes</Link>
                       </Button>
                     </div>
@@ -666,7 +632,7 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                 {step !== 'qr' && (
                   <div className="flex items-center gap-6 pt-8">
                     {step !== 'appointment' && (
-                      <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl text-lg font-bold text-gray-500" onClick={prevStep} disabled={isTransitioning || isProcessingPayment}>
+                      <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl text-lg font-bold" onClick={prevStep} disabled={isTransitioning || isProcessingPayment}>
                         <ArrowLeft className="mr-2 h-6 w-6" />
                         {bookingI18n.form.back}
                       </Button>
@@ -676,7 +642,7 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                       <Button 
                         key={`next-${step}`}
                         type="button" 
-                        className="flex-1 h-14 rounded-2xl text-lg font-bold bg-primary hover:bg-primary/90 shadow-lg" 
+                        className="flex-1 h-14 rounded-2xl text-lg font-bold bg-primary" 
                         onClick={nextStep}
                         disabled={isTransitioning}
                       >
@@ -687,23 +653,10 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
                       <Button 
                         key="submit-booking"
                         type="submit" 
-                        className={cn(
-                          "flex-1 h-14 rounded-2xl text-lg font-bold shadow-lg",
-                          form.watch('paymentMethod') === 'upi' ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"
-                        )} 
+                        className="flex-1 h-14 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700" 
                         disabled={form.formState.isSubmitting || isTransitioning || isProcessingPayment}
                       >
-                        {form.formState.isSubmitting || isProcessingPayment ? (
-                          <div className="flex items-center gap-3">
-                            <Loader2 className="animate-spin h-6 w-6" />
-                            {form.watch('paymentMethod') === 'upi' ? "Processing Payment..." : bookingI18n.form.submitting}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-3">
-                            {form.watch('paymentMethod') === 'upi' ? <ShieldCheck className="h-6 w-6" /> : <CheckCircle className="h-6 w-6" />}
-                            {form.watch('paymentMethod') === 'upi' ? "Pay and Confirm" : bookingI18n.form.submit}
-                          </div>
-                        )}
+                        {form.formState.isSubmitting || isProcessingPayment ? <Loader2 className="animate-spin h-6 w-6" /> : bookingI18n.form.submit}
                       </Button>
                     )}
                   </div>
@@ -711,14 +664,6 @@ if (slotInfo && slotInfo.bookedCount >= slotInfo.maxCapacity) {
               </form>
             </Form>
           </CardContent>
-          {step === 'payment' && (
-             <CardFooter className="bg-gray-50 p-6 flex justify-center text-center">
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                  <Info className="h-4 w-4" />
-                  <p>Transactions are secured via Razorpay SSL Encryption.</p>
-                </div>
-             </CardFooter>
-          )}
         </Card>
       </div>
     </div>
