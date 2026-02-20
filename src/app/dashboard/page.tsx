@@ -12,13 +12,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import GovernmentEmblem from '@/components/icons/government-emblem';
-import { LogOut, Users, FileText, MapPin, HomeIcon, Milestone } from 'lucide-react';
+import { LogOut, Users, FileText, MapPin, HomeIcon, Milestone, CreditCard } from 'lucide-react';
 import { useDashboard } from './layout';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useLanguage } from '@/lib/language-context';
 import Header from '@/components/layout/header';
-
+import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { citizen } = useDashboard();
@@ -41,13 +41,42 @@ export default function DashboardPage() {
     );
   }
 
+  const infoItems = [
+    {
+      label: profileI18n.cardNumber,
+      value: citizen.id,
+      icon: FileText,
+    },
+    {
+      label: profileI18n.cardType,
+      value: citizen.cardType,
+      icon: CreditCard,
+      isBadge: true,
+    },
+    {
+      label: profileI18n.district,
+      value: citizen.district,
+      icon: MapPin,
+    },
+    {
+      label: profileI18n.taluk,
+      value: citizen.taluk || profileI18n.notAvailable,
+      icon: Milestone,
+    },
+    {
+      label: profileI18n.fpsCode,
+      value: citizen.fpsCode,
+      icon: HomeIcon,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
-      <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
         {/* Header Card - Profile Info */}
-        <Card className="shadow-lg border-t-4 border-primary">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <Card className="shadow-lg border-t-4 border-primary overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 bg-white">
             <div className='flex items-center gap-4'>
                 <GovernmentEmblem className="h-16 w-16" />
                 <div>
@@ -57,36 +86,40 @@ export default function DashboardPage() {
                     <CardDescription>{profileI18n.subtitle}</CardDescription>
                 </div>
             </div>
-            <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2 hover:bg-destructive hover:text-white transition-colors">
               <LogOut className="h-4 w-4" />
               {i18n.header.logout}
             </Button>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
-                <div className='flex items-center gap-2 p-2 bg-white rounded border'>
-                  <FileText className='h-4 w-4 text-primary shrink-0'/> 
-                  <span className='text-muted-foreground'>{profileI18n.cardNumber}:</span> 
-                  <span className='font-medium'>{citizen.id}</span>
-                </div>
-                <div className='flex items-center gap-2 p-2 bg-white rounded border'>
-                  <Badge variant="outline" className="bg-primary/5">{citizen.cardType}</Badge>
-                </div>
-                <div className='flex items-center gap-2 p-2 bg-white rounded border'>
-                  <MapPin className='h-4 w-4 text-primary shrink-0'/> 
-                  <span className='text-muted-foreground'>{profileI18n.district}:</span> 
-                  <span className='font-medium'>{citizen.district}</span>
-                </div>
-                <div className='flex items-center gap-2 p-2 bg-white rounded border'>
-                  <Milestone className='h-4 w-4 text-primary shrink-0'/> 
-                  <span className='text-muted-foreground'>{profileI18n.taluk}:</span> 
-                  <span className='font-medium'>{citizen.taluk || profileI18n.notAvailable}</span>
-                </div>
-                <div className='flex items-center gap-2 p-2 bg-white rounded border'>
-                  <HomeIcon className='h-4 w-4 text-primary shrink-0'/> 
-                  <span className='text-muted-foreground'>{profileI18n.fpsCode}:</span> 
-                  <span className='font-medium'>{citizen.fpsCode}</span>
-                </div>
+          <CardContent className="bg-gray-50/50 p-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {infoItems.map((item, index) => (
+                  <div 
+                    key={index} 
+                    className={cn(
+                      "flex items-center gap-3 p-3 bg-white rounded-xl border shadow-sm h-full transition-all hover:shadow-md",
+                      index === 4 && "col-span-2 md:col-span-1" // Make the last item span 2 on very small screens if needed
+                    )}
+                  >
+                    <div className="bg-primary/10 p-2 rounded-lg shrink-0">
+                      <item.icon className='h-4 w-4 text-primary'/>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className='text-[10px] uppercase font-bold text-muted-foreground tracking-wider leading-none mb-1 whitespace-nowrap'>
+                        {item.label}
+                      </span>
+                      {item.isBadge ? (
+                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 w-fit text-[11px] py-0 px-2">
+                          {item.value}
+                        </Badge>
+                      ) : (
+                        <span className='font-bold text-gray-900 text-sm whitespace-nowrap truncate'>
+                          {item.value}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
