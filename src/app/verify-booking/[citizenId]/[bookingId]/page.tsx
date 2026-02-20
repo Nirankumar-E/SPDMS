@@ -1,16 +1,17 @@
-
 'use client';
 
+import { useState } from 'react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import Header from '@/components/layout/header';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle2, AlertCircle, ShoppingBag, CreditCard, User, Calendar, Clock, MapPin, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckCircle2, AlertCircle, ShoppingBag, CreditCard, User, Loader2, PackageCheck, Info, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/lib/language-context';
 import { formatCurrency, cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 export default function VerifyBookingPage() {
   const params = useParams();
@@ -18,7 +19,10 @@ export default function VerifyBookingPage() {
   const bookingId = params.bookingId as string;
   const firestore = useFirestore();
   const { i18n } = useLanguage();
+  const { toast } = useToast();
   const vI18n = i18n.verification;
+
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const bookingDocRef = useMemoFirebase(() => {
     if (!firestore || !citizenId || !bookingId) return null;
@@ -32,6 +36,42 @@ export default function VerifyBookingPage() {
 
   const { data: booking, isLoading: isBookingLoading } = useDoc<any>(bookingDocRef);
   const { data: citizen, isLoading: isCitizenLoading } = useDoc<any>(citizenDocRef);
+
+  const handleConsumeRation = async () => {
+    if (!firestore || !bookingDocRef || !booking) return;
+
+    setIsUpdating(true);
+    try {
+      // QNS IMPLEMENTATION: Transaction-based single-use update
+      await runTransaction(firestore, async (transaction) => {
+        const snap = await transaction.get(bookingDocRef);
+        if (!snap.exists()) throw new Error("Booking not found");
+        
+        const data = snap.data();
+        if (data.status === 'Collected') {
+          throw new Error("This ration has already been collected.");
+        }
+
+        transaction.update(bookingDocRef, {
+          status: 'Collected',
+          collectedAt: serverTimestamp()
+        });
+      });
+
+      toast({
+        title: "Success",
+        description: "Ration distribution recorded successfully.",
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: "Distribution Error",
+        description: err.message,
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const isLoading = isBookingLoading || isCitizenLoading;
 
@@ -66,14 +106,19 @@ export default function VerifyBookingPage() {
     );
   }
 
+  const isAlreadyCollected = booking.status === 'Collected';
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20">
       <Header />
       <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-2">
-          <Badge className="bg-green-600 px-6 py-2 rounded-full text-sm font-bold shadow-lg animate-in zoom-in-95">
-             <CheckCircle2 className="h-4 w-4 mr-2" />
-             {vI18n.verifiedStatus}
+          <Badge className={cn(
+            "px-6 py-2 rounded-full text-sm font-bold shadow-lg animate-in zoom-in-95",
+            isAlreadyCollected ? "bg-amber-500" : "bg-green-600"
+          )}>
+             {isAlreadyCollected ? <AlertCircle className="h-4 w-4 mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+             {isAlreadyCollected ? "Already Collected" : vI18n.verifiedStatus}
           </Badge>
           <h1 className="text-3xl font-headline font-bold text-gray-900">{vI18n.title}</h1>
           <p className="text-gray-500">{vI18n.subtitle}</p>
@@ -81,16 +126,16 @@ export default function VerifyBookingPage() {
 
         {/* Real-time Status Banner */}
         <div className={cn(
-          "p-6 rounded-3xl border-2 flex items-center justify-between shadow-sm",
-          booking.status === 'Collected' ? "bg-gray-100 border-gray-200" : "bg-primary/5 border-primary/20"
+          "p-6 rounded-3xl border-2 flex items-center justify-between shadow-sm transition-colors",
+          isAlreadyCollected ? "bg-amber-50 border-amber-200" : "bg-primary/5 border-primary/20"
         )}>
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-white shadow-inner flex items-center justify-center">
-               <CheckCircle2 className={cn("h-6 w-6", booking.status === 'Collected' ? "text-gray-400" : "text-primary")} />
+            <div className="h-12 w-12 rounded-2xl bg-white shadow-inner flex items-center justify-center text-primary">
+               {isAlreadyCollected ? <PackageCheck className="h-6 w-6 text-amber-500" /> : <Clock className="h-6 w-6" />}
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Collection Status</p>
-              <h4 className="text-xl font-bold">{booking.status}</h4>
+              <h4 className={cn("text-xl font-bold", isAlreadyCollected && "text-amber-700")}>{booking.status}</h4>
             </div>
           </div>
           <div className="text-right">
@@ -98,6 +143,13 @@ export default function VerifyBookingPage() {
              <h4 className="text-lg font-bold">{booking.timeSlot}</h4>
           </div>
         </div>
+
+        {isAlreadyCollected && (
+          <div className="bg-amber-100 border border-amber-200 p-4 rounded-2xl flex gap-3 text-amber-800">
+            <Info className="h-5 w-5 shrink-0" />
+            <p className="text-sm font-medium">This ration was collected on {booking.collectedAt?.toDate().toLocaleString() || 'previously recorded date'}.</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-6">
            {/* Purchaser Info */}
@@ -120,6 +172,10 @@ export default function VerifyBookingPage() {
                  <div>
                     <p className="text-xs font-bold text-gray-400 uppercase">{i18n.profile.district}</p>
                     <p className="font-medium">{citizen.district}</p>
+                 </div>
+                 <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">{i18n.profile.taluk}</p>
+                    <p className="font-medium">{citizen.taluk || i18n.profile.notAvailable}</p>
                  </div>
                  <div>
                     <p className="text-xs font-bold text-gray-400 uppercase">{i18n.profile.cardType}</p>
@@ -178,6 +234,17 @@ export default function VerifyBookingPage() {
                  </Badge>
               </CardContent>
            </Card>
+
+           {/* Shopkeeper Action: QNS Distribution Lock */}
+           {!isAlreadyCollected && (
+             <Button 
+               className="w-full h-16 rounded-3xl text-xl font-bold shadow-xl bg-primary hover:bg-primary/90"
+               onClick={handleConsumeRation}
+               disabled={isUpdating}
+             >
+               {isUpdating ? <Loader2 className="animate-spin h-6 w-6" /> : "Confirm Distribution & Mark Collected"}
+             </Button>
+           )}
         </div>
       </div>
     </div>
