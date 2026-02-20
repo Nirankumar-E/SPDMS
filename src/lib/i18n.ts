@@ -159,7 +159,9 @@ export interface ProfileTranslations {
   cardNumber: string;
   cardType: string;
   district: string;
+  taluk: string;
   fpsCode: string;
+  notAvailable: string;
   familyMembers: {
     title: string;
     subtitle: string;
@@ -407,7 +409,9 @@ export const translations: Record<Language, Translations> = {
       cardNumber: 'அட்டை எண்',
       cardType: 'அட்டை வகை',
       district: 'மாவட்டம்',
+      taluk: 'வட்டம்',
       fpsCode: 'நியாய விலைக் கடை எண்',
+      notAvailable: 'கிடைக்கவில்லை',
       familyMembers: {
         title: 'குடும்ப உறுப்பினர்கள்',
         subtitle: 'இந்த ஸ்மார்ட் கார்டின் கீழ் பதிவுசெய்யப்பட்ட உறுப்பினர்களின் பட்டியல்.',
@@ -654,7 +658,9 @@ export const translations: Record<Language, Translations> = {
       cardNumber: 'Card Number',
       cardType: 'Card Type',
       district: 'District',
+      taluk: 'Taluk',
       fpsCode: 'FPS Shop Code',
+      notAvailable: 'Not Available',
       familyMembers: {
         title: 'Family Members',
         subtitle: 'List of members registered under this smart card.',
