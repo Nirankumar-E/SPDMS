@@ -54,7 +54,7 @@ import { useLanguage } from '@/lib/language-context';
 import Header from '@/components/layout/header';
 import { QRCodeSVG } from 'qrcode.react';
 
-const RZP_KEY_ID = "rzp_test_placeholder"; 
+const RZP_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!; 
 const MAX_SLOT_CAPACITY = 16;
 
 const TIME_SLOTS = [
