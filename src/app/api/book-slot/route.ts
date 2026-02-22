@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 
@@ -6,6 +5,7 @@ export async function POST(req: NextRequest) {
   try {
     const {
       citizenId,
+      fpsCode,
       date,
       timeSlot,
       items,
@@ -14,16 +14,16 @@ export async function POST(req: NextRequest) {
       transactionId
     } = await req.json();
 
-    if (!citizenId || !date || !timeSlot) {
+    if (!citizenId || !fpsCode || !date || !timeSlot) {
       return NextResponse.json(
         { success: false, message: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Create unique slot ID (date + timeSlot)
-    const slotId = `${date}_${timeSlot}`;
-    const slotRef = adminDb.collection("slots").doc(slotId);
+    // Slot ID with FPS isolation
+    const slotId = `${fpsCode}_${date}_${timeSlot}`;
+    const slotRef = adminDb.collection("fps_slots").doc(slotId);
 
     const result = await adminDb.runTransaction(async (transaction) => {
       const slotDoc = await transaction.get(slotRef);
@@ -38,10 +38,10 @@ export async function POST(req: NextRequest) {
       }
 
       if (bookedCount >= maxCapacity) {
-        throw new Error("Slot is full");
+        throw new Error("Slot is full. Please choose another time.");
       }
 
-      // Update slot count
+      // Update slot counter
       transaction.set(
         slotRef,
         {
@@ -49,18 +49,25 @@ export async function POST(req: NextRequest) {
           maxCapacity,
           date,
           timeSlot,
+          fpsCode
         },
         { merge: true }
       );
 
-      // Create booking document
+      // Create booking
       const bookingRef = adminDb
         .collection("citizens")
         .doc(citizenId)
         .collection("bookings")
         .doc();
 
-      const verifyUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/verify-booking/${citizenId}/${bookingRef.id}`;
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000";
+
+      const verifyUrl = `${baseUrl}/verify-booking/${citizenId}/${bookingRef.id}`;
 
       transaction.set(bookingRef, {
         date,
