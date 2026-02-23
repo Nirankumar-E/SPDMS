@@ -6,13 +6,11 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useDashboard } from '../layout';
+import { useDashboard } from '@/lib/dashboard';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { 
   collection, 
-  serverTimestamp, 
   doc, 
-  runTransaction,
   query,
   where
 } from 'firebase/firestore';
@@ -203,59 +201,50 @@ export default function RationSelectionPage() {
   }, [citizen?.id]);
 
   const completeBooking = async (data: BookingFormValues, transactionId?: string) => {
-    if (!citizen || !firestore) return;
+    if (!citizen) return;
+
     const startTime = performance.now();
+    setIsProcessingPayment(true);
 
     try {
       const dateStr = format(data.date, 'yyyy-MM-dd');
-      const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
-      const slotId = `${citizen.fpsCode}_${dateStr}_${slotIndex}`;
-      const slotRef = doc(firestore, 'fps_slots', slotId);
-      
+
       const finalItems = Object.entries(selectedItems)
         .filter(([_, val]) => val.enabled)
         .map(([key, val]) => ({
           name: key,
           quantity: val.quantity,
-          unit: (normalizedAllocation[key] as string).split(' ')[1] || 'Kg'
         }));
 
-      const bookingsColRef = collection(firestore, 'citizens', citizen.id, 'bookings');
-      const bookingDocRef = doc(bookingsColRef);
-      const bookingId = bookingDocRef.id;
-
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const verifyUrl = `${origin}/verify-booking/${citizen.id}/${bookingId}`;
-      const paymentStatus = data.paymentMethod === 'upi' ? 'Completed' : 'Pending';
-
-      await runTransaction(firestore, async (transaction) => {
-        const slotSnap = await transaction.get(slotRef);
-        const currentCount = slotSnap.exists() ? (slotSnap.data() as any).count : 0;
-
-        if (currentCount >= MAX_SLOT_CAPACITY) {
-          throw new Error('This slot is now full. Please select another time slot.');
-        }
-
-        transaction.set(slotRef, { count: currentCount + 1 }, { merge: true });
-
-        transaction.set(bookingDocRef, {
+      const response = await fetch("/api/book-slot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          citizenId: citizen.id,
+          fpsCode: citizen.fpsCode,
           date: dateStr,
           timeSlot: data.timeSlot,
-          status: 'Booked',
-          paymentStatus,
           items: finalItems,
           paymentMethod: data.paymentMethod,
           totalAmount,
-          transactionId: transactionId || null,
-          qrData: verifyUrl,
-          createdAt: serverTimestamp()
-        });
+          transactionId: transactionId || null
+        }),
       });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message);
+      }
 
       const endTime = performance.now();
       setPerfMetrics({ startTime, endTime });
-      setGeneratedQRUrl(verifyUrl);
+
+      setGeneratedQRUrl(result.verifyUrl);
       setStep('qr');
+
       toast({
         title: bookingI18n.success.title,
         description: `Booking processed in ${Math.round(endTime - startTime)}ms`,
@@ -265,7 +254,7 @@ export default function RationSelectionPage() {
       toast({
         variant: 'destructive',
         title: 'Booking Failed',
-        description: error.message || bookingI18n.error,
+        description: error.message,
       });
     } finally {
       setIsProcessingPayment(false);
