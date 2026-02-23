@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useDashboard } from '@/lib/dashboard';
+import { useDashboard } from '@/lib/dashboard-context';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { 
   collection, 
