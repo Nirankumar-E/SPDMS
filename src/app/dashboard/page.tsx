@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import GovernmentEmblem from '@/components/icons/government-emblem';
 import { LogOut, Users, FileText, MapPin, HomeIcon, Milestone, CreditCard } from 'lucide-react';
-import { useDashboard } from './layout';
+import { useDashboard } from '@/lib/dashboard-context';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useLanguage } from '@/lib/language-context';

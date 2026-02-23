@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useDashboard } from '../layout';
+import { useDashboard } from '@/lib/dashboard-context';
 import Header from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Store, MapPin, Clock, ArrowLeft, Navigation, Loader2 } from 'lucide-react';

@@ -3,43 +3,10 @@
 
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, createContext, useContext, ReactNode, useState } from 'react';
+import { useEffect, ReactNode, useState } from 'react';
 import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-
-// Define the shape of the citizen data based on your Firestore structure
-// This interface represents the data *within* a citizen document.
-interface CitizenDocument {
-  name: string;
-  cardType: string;
-  fpsCode: string;
-  district: string;
-  taluk?: string;
-  profileCompleted: boolean;
-  familyMembers: { id: string; name: string; age: number; gender: string; relation: string }[];
-  rationAllocation: { [key: string]: string };
-  [key: string]: any; // Allow other properties
-}
-
-// This is the shape of the object we'll pass in context, which includes the document ID.
-interface Citizen extends CitizenDocument {
-    id: string; // The document ID, which is the Smart Card Number
-}
-
-interface DashboardContextType {
-  citizen: Citizen | null;
-  isLoading: boolean;
-}
-
-const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
-
-export function useDashboard() {
-  const context = useContext(DashboardContext);
-  if (!context) {
-    throw new Error('useDashboard must be used within a DashboardLayout');
-  }
-  return context;
-}
+import { DashboardProvider, CitizenDocument } from '@/lib/dashboard-context';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, isUserLoading: isAuthLoading } = useUser();
@@ -113,8 +80,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   // If profile is complete, render the dashboard pages
   return (
-    <DashboardContext.Provider value={{ citizen, isLoading }}>
+    <DashboardProvider value={{ citizen, isLoading }}>
       {children}
-    </DashboardContext.Provider>
+    </DashboardProvider>
   );
 }

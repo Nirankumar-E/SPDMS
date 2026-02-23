@@ -10,7 +10,7 @@ import { useLanguage } from '@/lib/language-context';
 import AppSidebar from './app-sidebar';
 
 const Header = () => {
-  const { user, loading } = useUser();
+  const { user, isUserLoading: loading } = useUser();
   const auth = useAuth();
   const router = useRouter();
   const { language, setLanguage, i18n } = useLanguage();

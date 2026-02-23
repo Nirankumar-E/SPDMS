@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useDashboard } from '../layout';
+import { useDashboard } from '@/lib/dashboard-context';
+<!-- import { useDashboard } from '../layout'; -->
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { 
   collection, 
@@ -134,7 +135,7 @@ export default function RationSelectionPage() {
   const prices: Record<string, number> = {
     rawRice: 0,
     boiledRice: 0,
-    wheat: 2,
+    wheat: 0,
     sugar: 25,
     palmOil: 25,
     toorDal: 30
@@ -527,7 +528,7 @@ export default function RationSelectionPage() {
                                 {prices[key] > 0 && key !== 'wheat' && (
                                   <div className="text-right w-20">
                                     <p className="text-xs text-muted-foreground">Price</p>
-                                    <p className="font-bold text-primary">{formatCurrency(prices[key])}/{unit}</p>
+                                    <p className="font-bold text-primary">{formatCurrency(prices[key])}/Kg</p>
                                   </div>
                                 )}
                             </div>

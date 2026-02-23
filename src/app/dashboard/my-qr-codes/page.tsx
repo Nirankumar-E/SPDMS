@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useDashboard } from '../layout';
+import { useDashboard } from '@/lib/dashboard-context';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import Header from '@/components/layout/header';
