@@ -134,7 +134,7 @@ export default function RationSelectionPage() {
   const prices: Record<string, number> = {
     rawRice: 0,
     boiledRice: 0,
-    wheat: 2,
+    wheat: 0,
     sugar: 25,
     palmOil: 25,
     toorDal: 30
