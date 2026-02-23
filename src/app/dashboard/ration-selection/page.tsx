@@ -527,7 +527,7 @@ export default function RationSelectionPage() {
                                 {prices[key] > 0 && key !== 'wheat' && (
                                   <div className="text-right w-20">
                                     <p className="text-xs text-muted-foreground">Price</p>
-                                    <p className="font-bold text-primary">{formatCurrency(prices[key])}/{unit}</p>
+                                    <p className="font-bold text-primary">{formatCurrency(prices[key])}/Kg</p>
                                   </div>
                                 )}
                             </div>
