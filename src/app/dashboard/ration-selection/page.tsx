@@ -6,14 +6,20 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-// import { useDashboard } from '../layout'; 
 import { useDashboard } from '@/lib/dashboard-context';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { 
+  useFirestore, 
+  useAuth, 
+  useCollection, 
+  useMemoFirebase 
+} from '@/firebase';
 import { 
   collection, 
-  doc, 
-  query,
-  where
+  query, 
+  where,
+  doc,
+  runTransaction,
+  serverTimestamp
 } from 'firebase/firestore';
 import {
   Card,
@@ -34,8 +40,7 @@ import {
   Loader2,
   Download,
   Clock,
-  Users,
-  Activity
+  Users
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -52,6 +57,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
 import Header from '@/components/layout/header';
 import { QRCodeSVG } from 'qrcode.react';
+import { Progress } from '@/components/ui/progress';
 
 const RZP_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!; 
 const MAX_SLOT_CAPACITY = 16;
@@ -77,6 +83,7 @@ type Step = 'appointment' | 'items' | 'payment' | 'qr';
 export default function RationSelectionPage() {
   const { citizen } = useDashboard();
   const firestore = useFirestore();
+  const auth = useAuth();
   const { toast } = useToast();
   const { i18n } = useLanguage();
   const bookingI18n = i18n.booking;
@@ -86,7 +93,6 @@ export default function RationSelectionPage() {
   const [generatedQRUrl, setGeneratedQRUrl] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [perfMetrics, setPerfMetrics] = useState<{ startTime: number; endTime: number } | null>(null);
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
@@ -97,25 +103,26 @@ export default function RationSelectionPage() {
 
   const selectedDate = form.watch('date');
 
+  // Real-time slot subscription
   const slotCountsQuery = useMemoFirebase(() => {
     if (!firestore || !citizen?.fpsCode || !selectedDate) return null;
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     return query(
       collection(firestore, 'fps_slots'),
-      where('__name__', '>=', `${citizen.fpsCode}_${dateStr}_`),
-      where('__name__', '<=', `${citizen.fpsCode}_${dateStr}_\uf8ff`)
+      where('fpsCode', '==', citizen.fpsCode),
+      where('date', '==', dateStr)
     );
   }, [firestore, citizen?.fpsCode, selectedDate]);
 
   const { data: slotCounts } = useCollection(slotCountsQuery);
 
   const getSlotStatus = useCallback((slot: string) => {
-    if (!slotCounts || !selectedDate || !citizen?.fpsCode) return { count: 0, isFull: false };
     const idx = TIME_SLOTS.indexOf(slot);
+    if (!slotCounts || !selectedDate || !citizen?.fpsCode || idx === -1) return { count: 0, isFull: false };
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     const slotId = `${citizen.fpsCode}_${dateStr}_${idx}`;
     const slotDoc = slotCounts.find(s => s.id === slotId);
-    const count = slotDoc?.count || 0;
+    const count = slotDoc?.bookedCount || 0;
     return {
       count,
       isFull: count >= MAX_SLOT_CAPACITY
@@ -143,14 +150,7 @@ export default function RationSelectionPage() {
 
   const normalizedAllocation = useMemo(() => {
     if (!citizen?.rationAllocation) return {};
-    const alloc = { ...citizen.rationAllocation };
-    if (alloc.rice) {
-      const totalRice = parseFloat(alloc.rice as string) || 20;
-      alloc.rawRice = `${Math.floor(totalRice/2)} Kg`;
-      alloc.boiledRice = `${Math.ceil(totalRice/2)} Kg`;
-      delete alloc.rice;
-    }
-    return alloc;
+    return { ...citizen.rationAllocation };
   }, [citizen]);
 
   useEffect(() => {
@@ -162,7 +162,7 @@ export default function RationSelectionPage() {
       });
       setSelectedItems(initial);
     }
-  }, [normalizedAllocation, selectedItems]);
+  }, [normalizedAllocation]);
 
   const totalAmount = useMemo(() => {
     return Object.entries(selectedItems).reduce((acc, [key, val]) => {
@@ -201,66 +201,109 @@ export default function RationSelectionPage() {
     }
   }, [citizen?.id]);
 
-  const completeBooking = async (data: BookingFormValues, transactionId?: string) => {
-    if (!citizen) return;
+  const completeBooking = useCallback(async (data: BookingFormValues, transactionId?: string) => {
+    if (!citizen || !firestore || !auth.currentUser) return;
 
-    const startTime = performance.now();
     setIsProcessingPayment(true);
 
     try {
       const dateStr = format(data.date, 'yyyy-MM-dd');
+      const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
+      const slotId = `${citizen.fpsCode}_${dateStr}_${slotIndex}`;
+      const currentMonth = dateStr.substring(0, 7);
 
-      const finalItems = Object.entries(selectedItems)
-        .filter(([_, val]) => val.enabled)
-        .map(([key, val]) => ({
-          name: key,
-          quantity: val.quantity,
-        }));
+      const citizenRef = doc(firestore, 'citizens', citizen.id);
+      const slotRef = doc(firestore, 'fps_slots', slotId);
+      const bookingsColRef = collection(firestore, 'citizens', citizen.id, 'bookings');
+      const newBookingRef = doc(bookingsColRef);
 
-      const response = await fetch("/api/book-slot", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          citizenId: citizen.id,
-          fpsCode: citizen.fpsCode,
+      await runTransaction(firestore, async (transaction) => {
+        // 1. Check Citizen's last booking
+        const citizenSnap = await transaction.get(citizenRef);
+        if (!citizenSnap.exists()) throw new Error("Citizen profile not found.");
+        
+        const citizenData = citizenSnap.data();
+        if (citizenData?.lastBookingMonth === currentMonth) {
+          throw new Error("A booking has already been made for this month.");
+        }
+
+        // 2. Check Slot Capacity
+        const slotSnap = await transaction.get(slotRef);
+        let bookedCount = 0;
+        if (slotSnap.exists()) {
+          bookedCount = slotSnap.data().bookedCount || 0;
+        }
+
+        if (bookedCount >= MAX_SLOT_CAPACITY) {
+          throw new Error("This time slot is full. Please select another time.");
+        }
+
+        // 3. Prepare items
+        const finalItems = Object.entries(selectedItems)
+          .filter(([_, val]) => val.enabled)
+          .map(([key, val]) => ({
+            name: key,
+            quantity: val.quantity,
+            unit: "Kg"
+          }));
+
+        const baseUrl = window.location.origin;
+        const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${newBookingRef.id}`;
+
+        // 4. Perform Updates
+        transaction.set(slotRef, {
+          bookedCount: bookedCount + 1,
+          maxCapacity: MAX_SLOT_CAPACITY,
           date: dateStr,
           timeSlot: data.timeSlot,
+          fpsCode: citizen.fpsCode,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        transaction.update(citizenRef, {
+          lastBookingMonth: currentMonth
+        });
+
+        // Use data from transaction read (citizenData) to ensure no undefined values are sent
+        transaction.set(newBookingRef, {
+          date: dateStr,
+          timeSlot: data.timeSlot,
+          slotIndex,
+          status: "Booked",
+          paymentStatus: data.paymentMethod === 'upi' ? "Completed" : "Pending",
           items: finalItems,
           paymentMethod: data.paymentMethod,
-          totalAmount,
-          transactionId: transactionId || null
-        }),
+          totalAmount: totalAmount || 0,
+          transactionId: transactionId || null,
+          qrData: verifyUrl,
+          createdAt: serverTimestamp(),
+          citizenName: citizenData?.name || citizen.name || "Unknown",
+          district: citizenData?.district || citizen.district || "",
+          taluk: citizenData?.taluk || citizen.taluk || "",
+          fpsCode: citizenData?.fpsCode || citizen.fpsCode || ""
+        });
+
+        return { verifyUrl };
       });
 
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.message);
-      }
-
-      const endTime = performance.now();
-      setPerfMetrics({ startTime, endTime });
-
-      setGeneratedQRUrl(result.verifyUrl);
+      setGeneratedQRUrl(`${window.location.origin}/verify-booking/${citizen.id}/${newBookingRef.id}`);
       setStep('qr');
 
       toast({
         title: bookingI18n.success.title,
-        description: `Booking processed in ${Math.round(endTime - startTime)}ms`,
+        description: bookingI18n.success.description,
       });
 
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Booking Failed',
+        title: 'Booking Error',
         description: error.message,
       });
     } finally {
       setIsProcessingPayment(false);
     }
-  };
+  }, [citizen, firestore, auth, selectedItems, totalAmount, bookingI18n.success, toast]);
 
   const onSubmit = async (data: BookingFormValues) => {
     if (step !== 'payment') return;
@@ -271,7 +314,7 @@ export default function RationSelectionPage() {
         toast({ 
           variant: 'destructive', 
           title: 'Gateway Not Ready', 
-          description: 'Payment SDK is loading. Please wait.' 
+          description: 'Payment SDK is still loading.' 
         });
         return;
       }
@@ -314,7 +357,7 @@ export default function RationSelectionPage() {
         toast({
           variant: 'destructive',
           title: 'Slot Full',
-          description: 'This slot is full. Please pick another one.'
+          description: 'This slot is full.'
         });
         return;
       }
@@ -432,7 +475,10 @@ export default function RationSelectionPage() {
                         name="timeSlot"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
-                            <FormLabel className="text-lg font-bold text-gray-700">{bookingI18n.form.slotLabel}</FormLabel>
+                            <FormLabel className="text-lg font-bold text-gray-700">
+                                {bookingI18n.form.slotLabel}
+                                <Badge variant="outline" className="ml-2 text-[10px] uppercase tracking-tighter animate-pulse bg-green-50 text-green-700 border-green-200">Live</Badge>
+                            </FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDate}>
                               <FormControl>
                                 <SelectTrigger className="h-14 rounded-2xl border-2 font-medium hover:border-primary transition-all">
@@ -444,23 +490,18 @@ export default function RationSelectionPage() {
                                   const { count, isFull } = getSlotStatus(slot);
                                   return (
                                     <SelectItem key={slot} value={slot} disabled={isFull}>
-                                        <div className="flex items-center justify-between w-full gap-4 py-0.5">
-                                          <div className="flex items-center gap-2">
-                                            <Clock className="h-4 w-4 text-primary" />
-                                            <span className="font-medium">{slot}</span>
+                                        <div className="flex flex-col w-full py-1">
+                                          <div className="flex items-center justify-between gap-4 mb-1">
+                                            <div className="flex items-center gap-2">
+                                              <Clock className="h-4 w-4 text-primary" />
+                                              <span className="font-medium">{slot}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 ml-auto">
+                                              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                                              <span className="text-xs font-bold">{count}/{MAX_SLOT_CAPACITY}</span>
+                                            </div>
                                           </div>
-                                          <div className="flex items-center gap-1.5 ml-auto">
-                                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                                            <Badge 
-                                              variant={isFull ? "destructive" : "secondary"} 
-                                              className={cn(
-                                                "text-[10px] px-1.5 h-5 font-bold",
-                                                isFull && "bg-destructive/10 text-destructive border-destructive/20"
-                                              )}
-                                            >
-                                              {count}/{MAX_SLOT_CAPACITY}
-                                            </Badge>
-                                          </div>
+                                          <Progress value={(count / MAX_SLOT_CAPACITY) * 100} className="h-1" />
                                         </div>
                                     </SelectItem>
                                   );
@@ -479,7 +520,7 @@ export default function RationSelectionPage() {
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
                     <div className="flex items-center justify-between border-b pb-4">
                       <h3 className="font-bold text-2xl text-gray-800">{bookingI18n.allocationTitle}</h3>
-                      <Badge variant="outline" className="text-primary border-primary px-4 py-1 rounded-full bg-primary/5">Eligible Limits</Badge>
+                      <Badge variant="outline" className="text-primary border-primary px-4 py-1 rounded-full bg-primary/5">Limits</Badge>
                     </div>
                     <div className="grid grid-cols-1 gap-4">
                       {Object.entries(normalizedAllocation).map(([key, val]) => {
@@ -505,7 +546,7 @@ export default function RationSelectionPage() {
                                 <label htmlFor={`check-${key}`} className="text-lg font-bold capitalize cursor-pointer block">
                                   {i18n.data.items[key] || key}
                                 </label>
-                                <p className="text-sm text-muted-foreground font-medium">Available: {val as string}</p>
+                                <p className="text-sm text-muted-foreground font-medium">Max: {val as string}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-4">
@@ -525,12 +566,6 @@ export default function RationSelectionPage() {
                                   />
                                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">{unit}</span>
                                 </div>
-                                {prices[key] > 0 && key !== 'wheat' && (
-                                  <div className="text-right w-20">
-                                    <p className="text-xs text-muted-foreground">Price</p>
-                                    <p className="font-bold text-primary">{formatCurrency(prices[key])}/Kg</p>
-                                  </div>
-                                )}
                             </div>
                           </div>
                         );
@@ -600,12 +635,6 @@ export default function RationSelectionPage() {
                         {bookingI18n.success.title}
                       </div>
                       <p className="text-gray-500 font-medium max-w-sm">{bookingI18n.form.qrInstructions}</p>
-                      {perfMetrics && (
-                        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-widest font-bold pt-2">
-                           <Activity className="h-3 w-3" />
-                           Processed in {Math.round(perfMetrics.endTime - perfMetrics.startTime)}ms
-                        </div>
-                      )}
                     </div>
                     <div className="w-full max-w-sm space-y-4 pt-4">
                       <Button type="button" className="w-full h-14 rounded-2xl text-lg font-bold" onClick={handleDownloadQR}>
