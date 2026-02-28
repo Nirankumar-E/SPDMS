@@ -8,35 +8,31 @@ service cloud.firestore {
     }
 
     match /citizens/{citizenId} {
-      // Allow getting a citizen by ID for login verification and initial setup
       allow get: if true;
       allow create, set: if true;
-      
-      // Restrict listing all citizens to prevent data scraping
       allow list: if false;
-      
-      // Only signed-in users can update their profile data
       allow update: if isSignedIn();
       
       match /bookings/{bookingId} {
-        // Authenticated users can read and write their own collection bookings
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && 
+          (request.resource.data.status == 'Collected' || 
+           request.resource.data.status == 'Cancelled' || 
+           request.resource.data.paymentStatus == 'Completed');
       }
       
       allow delete: if false;
     }
 
     match /fps_slots/{slotId} {
-      // Slot availability is public information
       allow read: if true;
-      // Only authenticated users can update slot counts
       allow write: if isSignedIn();
     }
 
     match /shops/{fpsCode} {
-      // Shop details are public to help citizens find their location
       allow read: if true;
-      allow write: if false;
+      allow write: if isSignedIn();
     }
   }
 }
