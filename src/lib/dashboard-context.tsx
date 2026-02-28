@@ -1,8 +1,12 @@
+
 'use client';
 
 import { createContext, useContext, ReactNode } from 'react';
 
-interface CitizenDocument {
+/**
+ * Represents the raw data of a citizen document in Firestore.
+ */
+export interface CitizenDocument {
   name: string;
   cardType: string;
   fpsCode: string;
@@ -11,10 +15,14 @@ interface CitizenDocument {
   profileCompleted: boolean;
   familyMembers: { id: string; name: string; age: number; gender: string; relation: string }[];
   rationAllocation: { [key: string]: string };
+  lastBookingMonth?: string;
   [key: string]: any;
 }
 
-interface Citizen extends CitizenDocument {
+/**
+ * Represents a citizen document with its Firestore ID.
+ */
+export interface Citizen extends CitizenDocument {
   id: string;
 }
 
