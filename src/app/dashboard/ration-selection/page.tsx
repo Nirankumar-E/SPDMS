@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -48,6 +47,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils';
@@ -102,7 +102,6 @@ export default function RationSelectionPage() {
   });
 
   const selectedDate = form.watch('date');
-  const paymentMethod = form.watch('paymentMethod');
 
   const slotCountsQuery = useMemoFirebase(() => {
     if (!firestore || !citizen?.fpsCode || !selectedDate) return null;
@@ -208,23 +207,22 @@ export default function RationSelectionPage() {
 
     try {
       const dateStr = format(data.date, 'yyyy-MM-dd');
-      const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
       const currentMonth = dateStr.substring(0, 7); // YYYY-MM
+      const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
       
-      // We use the Month as the Document ID to strictly prevent duplicates
+      // month-based document ID for strict single-use prevention
       const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', currentMonth);
       const slotId = `${citizen.fpsCode}_${dateStr}_${slotIndex}`;
       const slotRef = doc(firestore, 'fps_slots', slotId);
 
       await runTransaction(firestore, async (transaction) => {
-        // 1. Check if booking for this month already exists
+        // 1. Month-based check
         const bookingSnap = await transaction.get(bookingRef);
         if (bookingSnap.exists()) {
-          console.error(`DEBUG: Duplicate detected for Month ID: ${currentMonth}`);
           throw new Error("A booking has already been made for this month.");
         }
 
-        // 2. Check Slot Capacity
+        // 2. Slot Capacity
         const slotSnap = await transaction.get(slotRef);
         let bookedCount = 0;
         if (slotSnap.exists()) {
@@ -247,7 +245,7 @@ export default function RationSelectionPage() {
         const baseUrl = window.location.origin;
         const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${currentMonth}`;
 
-        // 4. Perform Updates
+        // 4. Updates
         transaction.set(slotRef, {
           bookedCount: bookedCount + 1,
           maxCapacity: MAX_SLOT_CAPACITY,
@@ -257,11 +255,10 @@ export default function RationSelectionPage() {
           updatedAt: serverTimestamp()
         }, { merge: true });
 
-        // Atomic write with Month as the document ID
         transaction.set(bookingRef, {
           date: dateStr,
           timeSlot: data.timeSlot,
-          slotIndex,
+          slotIndex: slotIndex === -1 ? 0 : slotIndex,
           status: "Booked",
           paymentStatus: data.paymentMethod === 'upi' ? "Completed" : "Pending",
           items: finalItems,
@@ -587,24 +584,46 @@ export default function RationSelectionPage() {
                               value={field.value}
                               className="grid grid-cols-1 md:grid-cols-2 gap-4"
                             >
-                              <div className={cn(
-                                "flex items-center justify-between p-6 rounded-[2.5rem] border-2 cursor-pointer transition-all",
-                                field.value === 'cash' ? "border-green-600 bg-green-50 ring-2 ring-green-600/20 shadow-md" : "hover:bg-gray-50 border-gray-100"
-                              )} onClick={() => field.onChange('cash')}>
-                                <div className="flex items-center gap-4">
-                                  <RadioGroupItem value="cash" id="cash" className="h-6 w-6 border-2 border-green-600 text-green-600" />
-                                  <div className="font-bold text-lg">{i18n.data.payments.cash}</div>
-                                </div>
+                              <div className="relative">
+                                <RadioGroupItem value="cash" id="cash" className="sr-only" />
+                                <Label
+                                  htmlFor="cash"
+                                  className={cn(
+                                    "flex items-center justify-between p-6 rounded-[2.5rem] border-2 cursor-pointer transition-all",
+                                    field.value === 'cash' ? "border-green-600 bg-green-50 ring-2 ring-green-600/20 shadow-md" : "hover:bg-gray-50 border-gray-100"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className={cn(
+                                        "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors",
+                                        field.value === 'cash' ? "border-green-600" : "border-gray-300"
+                                    )}>
+                                        {field.value === 'cash' && <div className="h-3 w-3 rounded-full bg-green-600" />}
+                                    </div>
+                                    <div className="font-bold text-lg">{i18n.data.payments.cash}</div>
+                                  </div>
+                                </Label>
                               </div>
 
-                              <div className={cn(
-                                "flex items-center justify-between p-6 rounded-[2.5rem] border-2 cursor-pointer transition-all",
-                                field.value === 'upi' ? "border-green-600 bg-green-50 ring-2 ring-green-600/20 shadow-md" : "hover:bg-gray-50 border-gray-100"
-                              )} onClick={() => field.onChange('upi')}>
-                                <div className="flex items-center gap-4">
-                                  <RadioGroupItem value="upi" id="upi" className="h-6 w-6 border-2 border-green-600 text-green-600" />
-                                  <div className="font-bold text-lg">{i18n.data.payments.upi}</div>
-                                </div>
+                              <div className="relative">
+                                <RadioGroupItem value="upi" id="upi" className="sr-only" />
+                                <Label
+                                  htmlFor="upi"
+                                  className={cn(
+                                    "flex items-center justify-between p-6 rounded-[2.5rem] border-2 cursor-pointer transition-all",
+                                    field.value === 'upi' ? "border-green-600 bg-green-50 ring-2 ring-green-600/20 shadow-md" : "hover:bg-gray-50 border-gray-100"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className={cn(
+                                        "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors",
+                                        field.value === 'upi' ? "border-green-600" : "border-gray-300"
+                                    )}>
+                                        {field.value === 'upi' && <div className="h-3 w-3 rounded-full bg-green-600" />}
+                                    </div>
+                                    <div className="font-bold text-lg">{i18n.data.payments.upi}</div>
+                                  </div>
+                                </Label>
                               </div>
                             </RadioGroup>
                           </FormControl>
@@ -672,7 +691,7 @@ export default function RationSelectionPage() {
                   </div>
                 )}
               </form>
-            </Form>
+            </Form>        
           </CardContent>
         </Card>
       </div>
