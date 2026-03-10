@@ -102,8 +102,8 @@ export default function RationSelectionPage() {
   });
 
   const selectedDate = form.watch('date');
+  const paymentMethod = form.watch('paymentMethod');
 
-  // Real-time slot subscription
   const slotCountsQuery = useMemoFirebase(() => {
     if (!firestore || !citizen?.fpsCode || !selectedDate) return null;
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -209,21 +209,18 @@ export default function RationSelectionPage() {
     try {
       const dateStr = format(data.date, 'yyyy-MM-dd');
       const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
+      const currentMonth = dateStr.substring(0, 7); // YYYY-MM
+      
+      // We use the Month as the Document ID to strictly prevent duplicates
+      const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', currentMonth);
       const slotId = `${citizen.fpsCode}_${dateStr}_${slotIndex}`;
-      const currentMonth = dateStr.substring(0, 7);
-
-      const citizenRef = doc(firestore, 'citizens', citizen.id);
       const slotRef = doc(firestore, 'fps_slots', slotId);
-      const bookingsColRef = collection(firestore, 'citizens', citizen.id, 'bookings');
-      const newBookingRef = doc(bookingsColRef);
 
       await runTransaction(firestore, async (transaction) => {
-        // 1. Check Citizen's last booking
-        const citizenSnap = await transaction.get(citizenRef);
-        if (!citizenSnap.exists()) throw new Error("Citizen profile not found.");
-        
-        const citizenData = citizenSnap.data();
-        if (citizenData?.lastBookingMonth === currentMonth) {
+        // 1. Check if booking for this month already exists
+        const bookingSnap = await transaction.get(bookingRef);
+        if (bookingSnap.exists()) {
+          console.error(`DEBUG: Duplicate detected for Month ID: ${currentMonth}`);
           throw new Error("A booking has already been made for this month.");
         }
 
@@ -248,7 +245,7 @@ export default function RationSelectionPage() {
           }));
 
         const baseUrl = window.location.origin;
-        const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${newBookingRef.id}`;
+        const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${currentMonth}`;
 
         // 4. Perform Updates
         transaction.set(slotRef, {
@@ -260,12 +257,8 @@ export default function RationSelectionPage() {
           updatedAt: serverTimestamp()
         }, { merge: true });
 
-        transaction.update(citizenRef, {
-          lastBookingMonth: currentMonth
-        });
-
-        // Use data from transaction read (citizenData) to ensure no undefined values are sent
-        transaction.set(newBookingRef, {
+        // Atomic write with Month as the document ID
+        transaction.set(bookingRef, {
           date: dateStr,
           timeSlot: data.timeSlot,
           slotIndex,
@@ -277,16 +270,14 @@ export default function RationSelectionPage() {
           transactionId: transactionId || null,
           qrData: verifyUrl,
           createdAt: serverTimestamp(),
-          citizenName: citizenData?.name || citizen.name || "Unknown",
-          district: citizenData?.district || citizen.district || "",
-          taluk: citizenData?.taluk || citizen.taluk || "",
-          fpsCode: citizenData?.fpsCode || citizen.fpsCode || ""
+          citizenName: citizen.name || "Unknown",
+          district: citizen.district || "",
+          taluk: citizen.taluk || "",
+          fpsCode: citizen.fpsCode || ""
         });
-
-        return { verifyUrl };
       });
 
-      setGeneratedQRUrl(`${window.location.origin}/verify-booking/${citizen.id}/${newBookingRef.id}`);
+      setGeneratedQRUrl(`${window.location.origin}/verify-booking/${citizen.id}/${currentMonth}`);
       setStep('qr');
 
       toast({
@@ -385,7 +376,7 @@ export default function RationSelectionPage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="flex flex-col items-center justify-center p-4 py-8 max-w-4xl mx-auto">
-        <Card className="w-full shadow-2xl overflow-hidden rounded-3xl border-none">
+        <Card className="w-full shadow-2xl overflow-hidden rounded-[3rem] border-none">
           <CardHeader className="bg-primary text-white p-8">
             <div className="flex items-center justify-between">
               <div>
@@ -530,7 +521,7 @@ export default function RationSelectionPage() {
                         
                         return (
                           <div key={key} className={cn(
-                            "flex items-center justify-between p-5 rounded-3xl border-2 transition-all",
+                            "flex items-center justify-between p-5 rounded-[2.5rem] border-2 transition-all",
                             selectedItems[key]?.enabled ? "border-primary bg-primary/5 shadow-md" : "border-gray-100 bg-white"
                           )}>
                             <div className="flex items-center gap-5">
@@ -576,7 +567,7 @@ export default function RationSelectionPage() {
 
                 {step === 'payment' && (
                   <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
-                    <div className="p-8 bg-primary rounded-3xl text-white shadow-xl flex items-center justify-between relative overflow-hidden">
+                    <div className="p-8 bg-green-600 rounded-[2.5rem] text-white shadow-xl flex items-center justify-between relative overflow-hidden">
                       <div className="relative z-10">
                         <p className="text-white/70 font-bold uppercase tracking-widest text-xs mb-1">{bookingI18n.form.total}</p>
                         <h4 className="text-5xl font-bold">{formatCurrency(totalAmount)}</h4>
@@ -593,25 +584,25 @@ export default function RationSelectionPage() {
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              value={field.value}
                               className="grid grid-cols-1 md:grid-cols-2 gap-4"
                             >
                               <div className={cn(
-                                "flex items-center justify-between p-6 rounded-3xl border-2 cursor-pointer transition-all",
-                                field.value === 'cash' ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md" : "hover:bg-gray-50 border-gray-100"
+                                "flex items-center justify-between p-6 rounded-[2.5rem] border-2 cursor-pointer transition-all",
+                                field.value === 'cash' ? "border-green-600 bg-green-50 ring-2 ring-green-600/20 shadow-md" : "hover:bg-gray-50 border-gray-100"
                               )} onClick={() => field.onChange('cash')}>
                                 <div className="flex items-center gap-4">
-                                  <RadioGroupItem value="cash" id="cash" className="h-6 w-6" />
+                                  <RadioGroupItem value="cash" id="cash" className="h-6 w-6 border-2 border-green-600 text-green-600" />
                                   <div className="font-bold text-lg">{i18n.data.payments.cash}</div>
                                 </div>
                               </div>
 
                               <div className={cn(
-                                "flex items-center justify-between p-6 rounded-3xl border-2 cursor-pointer transition-all",
-                                field.value === 'upi' ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md" : "hover:bg-gray-50 border-gray-100"
+                                "flex items-center justify-between p-6 rounded-[2.5rem] border-2 cursor-pointer transition-all",
+                                field.value === 'upi' ? "border-green-600 bg-green-50 ring-2 ring-green-600/20 shadow-md" : "hover:bg-gray-50 border-gray-100"
                               )} onClick={() => field.onChange('upi')}>
                                 <div className="flex items-center gap-4">
-                                  <RadioGroupItem value="upi" id="upi" className="h-6 w-6" />
+                                  <RadioGroupItem value="upi" id="upi" className="h-6 w-6 border-2 border-green-600 text-green-600" />
                                   <div className="font-bold text-lg">{i18n.data.payments.upi}</div>
                                 </div>
                               </div>
