@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useDashboard } from '@/lib/dashboard-context';
@@ -51,7 +50,10 @@ export default function MyQRCodesPage() {
         const currentCount = slotSnap.exists() ? slotSnap.data().bookedCount || 0 : 0;
 
         transaction.update(bookingRef, { status: 'Cancelled' });
+        
+        // Reset the monthly limit on cancellation
         transaction.update(citizenRef, { lastBookingMonth: null });
+        
         if (currentCount > 0) {
           transaction.update(slotRef, { bookedCount: currentCount - 1 });
         }
@@ -59,7 +61,7 @@ export default function MyQRCodesPage() {
 
       toast({
         title: "Cancelled",
-        description: "Booking has been successfully cancelled.",
+        description: "Booking has been successfully cancelled and your monthly limit has been reset.",
       });
     } catch (e: any) {
       toast({
