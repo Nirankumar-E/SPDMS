@@ -6,7 +6,7 @@ import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import Header from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, AlertCircle, ShoppingBag, CreditCard, User, Loader2, PackageCheck, Info, Clock } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ShoppingBag, CreditCard, User, Loader2, PackageCheck, Info, Clock, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/lib/language-context';
@@ -42,7 +42,6 @@ export default function VerifyBookingPage() {
 
     setIsUpdating(true);
     try {
-      // QNS IMPLEMENTATION: Transaction-based single-use update
       await runTransaction(firestore, async (transaction) => {
         const snap = await transaction.get(bookingDocRef);
         if (!snap.exists()) throw new Error("Booking not found");
@@ -50,6 +49,9 @@ export default function VerifyBookingPage() {
         const data = snap.data();
         if (data.status === 'Collected') {
           throw new Error("This ration has already been collected.");
+        }
+        if (data.status === 'Cancelled') {
+          throw new Error("This booking has been cancelled and cannot be collected.");
         }
 
         transaction.update(bookingDocRef, {
@@ -107,6 +109,7 @@ export default function VerifyBookingPage() {
   }
 
   const isAlreadyCollected = booking.status === 'Collected';
+  const isCancelled = booking.status === 'Cancelled';
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -115,10 +118,10 @@ export default function VerifyBookingPage() {
         <div className="text-center space-y-2">
           <Badge className={cn(
             "px-6 py-2 rounded-full text-sm font-bold shadow-lg animate-in zoom-in-95",
-            isAlreadyCollected ? "bg-amber-500" : "bg-green-600"
+            isAlreadyCollected ? "bg-amber-500" : (isCancelled ? "bg-destructive" : "bg-green-600")
           )}>
-             {isAlreadyCollected ? <AlertCircle className="h-4 w-4 mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-             {isAlreadyCollected ? "Already Collected" : vI18n.verifiedStatus}
+             {isAlreadyCollected ? <AlertCircle className="h-4 w-4 mr-2" /> : (isCancelled ? <XCircle className="h-4 w-4 mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />)}
+             {isCancelled ? "Booking Cancelled" : (isAlreadyCollected ? "Already Collected" : vI18n.verifiedStatus)}
           </Badge>
           <h1 className="text-3xl font-headline font-bold text-gray-900">{vI18n.title}</h1>
           <p className="text-gray-500">{vI18n.subtitle}</p>
@@ -127,15 +130,15 @@ export default function VerifyBookingPage() {
         {/* Real-time Status Banner */}
         <div className={cn(
           "p-6 rounded-3xl border-2 flex items-center justify-between shadow-sm transition-colors",
-          isAlreadyCollected ? "bg-amber-50 border-amber-200" : "bg-primary/5 border-primary/20"
+          isAlreadyCollected ? "bg-amber-50 border-amber-200" : (isCancelled ? "bg-red-50 border-red-200" : "bg-primary/5 border-primary/20")
         )}>
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-2xl bg-white shadow-inner flex items-center justify-center text-primary">
-               {isAlreadyCollected ? <PackageCheck className="h-6 w-6 text-amber-500" /> : <Clock className="h-6 w-6" />}
+               {isCancelled ? <XCircle className="h-6 w-6 text-red-500" /> : (isAlreadyCollected ? <PackageCheck className="h-6 w-6 text-amber-500" /> : <Clock className="h-6 w-6" />)}
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Collection Status</p>
-              <h4 className={cn("text-xl font-bold", isAlreadyCollected && "text-amber-700")}>{booking.status}</h4>
+              <h4 className={cn("text-xl font-bold", isAlreadyCollected && "text-amber-700", isCancelled && "text-red-700")}>{booking.status}</h4>
             </div>
           </div>
           <div className="text-right">
@@ -143,6 +146,13 @@ export default function VerifyBookingPage() {
              <h4 className="text-lg font-bold">{booking.timeSlot}</h4>
           </div>
         </div>
+
+        {isCancelled && (
+          <div className="bg-red-100 border border-red-200 p-4 rounded-2xl flex gap-3 text-red-800">
+            <Info className="h-5 w-5 shrink-0" />
+            <p className="text-sm font-medium">This booking was cancelled on {booking.cancelledAt?.toDate().toLocaleString() || 'previously recorded date'}. It cannot be used for collection.</p>
+          </div>
+        )}
 
         {isAlreadyCollected && (
           <div className="bg-amber-100 border border-amber-200 p-4 rounded-2xl flex gap-3 text-amber-800">
@@ -226,17 +236,17 @@ export default function VerifyBookingPage() {
                        <p className="text-xs text-gray-400">ID: {booking.id.substring(0, 12)}</p>
                     </div>
                  </div>
-                 <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'secondary'} className={cn(
+                 <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : (booking.paymentStatus === 'Refund Initiated' ? 'secondary' : 'outline')} className={cn(
                     "px-4 py-1 rounded-full",
-                    booking.paymentStatus === 'Completed' ? "bg-green-600" : "bg-amber-500"
+                    booking.paymentStatus === 'Completed' ? "bg-green-600" : (booking.paymentStatus === 'Refund Initiated' ? "bg-blue-500" : "bg-amber-500")
                  )}>
                     {i18n.data.paymentStatus[booking.paymentStatus] || booking.paymentStatus}
                  </Badge>
               </CardContent>
            </Card>
 
-           {/* Shopkeeper Action: QNS Distribution Lock */}
-           {!isAlreadyCollected && (
+           {/* Shopkeeper Action */}
+           {!isAlreadyCollected && !isCancelled && (
              <Button 
                className="w-full h-16 rounded-3xl text-xl font-bold shadow-xl bg-primary hover:bg-primary/90"
                onClick={handleConsumeRation}
