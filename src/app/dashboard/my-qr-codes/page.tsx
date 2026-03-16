@@ -2,10 +2,10 @@
 
 import { useDashboard } from '@/lib/dashboard-context';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, doc, runTransaction } from 'firebase/firestore';
+import { collection, query, orderBy, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import Header from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { QrCode, ArrowLeft, Calendar, Clock, ShoppingBag, CreditCard, Inbox, ShoppingCart, CheckCircle, ExternalLink, Trash2, Loader2 } from 'lucide-react';
+import { QrCode, ArrowLeft, Calendar, Clock, ShoppingBag, CreditCard, Inbox, ShoppingCart, CheckCircle, ExternalLink, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
@@ -15,6 +15,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function MyQRCodesPage() {
   const { citizen } = useDashboard();
@@ -49,11 +60,28 @@ export default function MyQRCodesPage() {
         const slotSnap = await transaction.get(slotRef);
         const currentCount = slotSnap.exists() ? slotSnap.data().bookedCount || 0 : 0;
 
-        transaction.update(bookingRef, { status: 'Cancelled' });
+        // 1. Update booking status and metadata
+        const updateData: any = { 
+          status: 'Cancelled',
+          cancelledAt: serverTimestamp()
+        };
+
+        // 2. Handle UPI Refund point-of-view
+        if (booking.paymentMethod === 'upi') {
+          updateData.paymentStatus = 'Refund Initiated';
+          updateData.refundStatus = 'Pending';
+          updateData.refundRequestedAt = serverTimestamp();
+        }
+
+        transaction.update(bookingRef, updateData);
         
-        // Reset the monthly limit on cancellation
-        transaction.update(citizenRef, { lastBookingMonth: null });
+        // 3. Reset the monthly limit lock on the Citizen document
+        // This allows Requirement #3 & #5: re-booking in same month
+        transaction.update(citizenRef, { 
+          lastBookingMonth: null 
+        });
         
+        // 4. Free up the slot capacity
         if (currentCount > 0) {
           transaction.update(slotRef, { bookedCount: currentCount - 1 });
         }
@@ -61,7 +89,7 @@ export default function MyQRCodesPage() {
 
       toast({
         title: "Cancelled",
-        description: "Booking has been successfully cancelled and your monthly limit has been reset.",
+        description: qrI18n.cancelSuccess,
       });
     } catch (e: any) {
       toast({
@@ -108,12 +136,12 @@ export default function MyQRCodesPage() {
                       </CardDescription>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <Badge variant={booking.status === 'Booked' ? 'default' : 'secondary'} className="rounded-full">
+                      <Badge variant={booking.status === 'Booked' ? 'default' : (booking.status === 'Cancelled' ? 'destructive' : 'secondary')} className="rounded-full">
                         {booking.status}
                       </Badge>
                       <Badge variant="outline" className={cn(
                         "text-[10px] py-0",
-                        booking.paymentStatus === 'Completed' ? "text-green-600 border-green-200" : "text-amber-600 border-amber-200"
+                        booking.paymentStatus === 'Completed' ? "text-green-600 border-green-200" : (booking.paymentStatus === 'Refund Initiated' ? "text-blue-600 border-blue-200" : "text-amber-600 border-amber-200")
                       )}>
                         {i18n.data.paymentStatus[booking.paymentStatus] || booking.paymentStatus}
                       </Badge>
@@ -122,7 +150,16 @@ export default function MyQRCodesPage() {
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
                   <div className="flex justify-center bg-white p-4 rounded-3xl border-2 border-dashed border-gray-100 shadow-inner group relative">
-                    <QRCodeSVG value={booking.qrData} size={140} level="H" />
+                    <QRCodeSVG value={booking.qrData} size={140} level="H" className={cn(booking.status === 'Cancelled' && "opacity-20 grayscale")} />
+                    
+                    {booking.status === 'Cancelled' && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-destructive/10 text-destructive px-3 py-1 rounded-full font-bold text-xs uppercase tracking-widest border border-destructive/20 rotate-[-12deg]">
+                          Cancelled
+                        </div>
+                      </div>
+                    )}
+
                     {booking.status === 'Booked' && (
                       <div className="absolute inset-0 bg-white/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-3xl gap-2">
                          <Button size="sm" variant="default" className="rounded-full shadow-lg" asChild>
@@ -131,15 +168,36 @@ export default function MyQRCodesPage() {
                                {qrI18n.verification}
                             </Link>
                          </Button>
-                         <Button 
-                          size="sm" 
-                          variant="destructive" 
-                          className="rounded-full shadow-lg"
-                          onClick={() => handleCancelBooking(booking)}
-                          disabled={isCancelling === booking.id}
-                        >
-                           {isCancelling === booking.id ? <Loader2 className="animate-spin h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
-                         </Button>
+                         
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="destructive" 
+                                className="rounded-full shadow-lg"
+                                disabled={isCancelling === booking.id}
+                              >
+                                {isCancelling === booking.id ? <Loader2 className="animate-spin h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="rounded-[2rem]">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>{qrI18n.cancelConfirmTitle}</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {qrI18n.cancelConfirmDesc}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleCancelBooking(booking)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+                                >
+                                  {qrI18n.cancelBooking}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                         </AlertDialog>
                       </div>
                     )}
                   </div>
