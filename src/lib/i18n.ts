@@ -1,4 +1,3 @@
-
 export type Language = 'TA' | 'EN';
 
 export interface ServiceItem {
@@ -231,6 +230,10 @@ export interface QRHistoryTranslations {
   bookingDetails: string;
   verification: string;
   paymentStatus: string;
+  cancelBooking: string;
+  cancelConfirmTitle: string;
+  cancelConfirmDesc: string;
+  cancelSuccess: string;
 }
 
 export interface VerificationTranslations {
@@ -502,6 +505,10 @@ export const translations: Record<Language, Translations> = {
       bookingDetails: 'முன்பதிவு விவரங்கள்',
       verification: 'சரிபார்ப்பு',
       paymentStatus: 'கட்டண நிலை',
+      cancelBooking: 'முன்பதிவை ரத்து செய்',
+      cancelConfirmTitle: 'நீங்கள் உறுதியாக இருக்கிறீர்களா?',
+      cancelConfirmDesc: 'இந்த முன்பதிவை ரத்து செய்வது உங்கள் நேரத்தை விடுவிக்கும். நீங்கள் பின்னர் வேறொரு நேரத்தை முன்பதிவு செய்யலாம்.',
+      cancelSuccess: 'உங்கள் ரேஷன் ஸ்லாட் ரத்து செய்யப்பட்டுள்ளது. நீங்கள் இப்போது மற்றொரு ஸ்லாட்டை முன்பதிவு செய்யலாம்.',
     },
     verification: {
       title: 'முன்பதிவு சரிபார்ப்பு',
@@ -751,6 +758,10 @@ export const translations: Record<Language, Translations> = {
       bookingDetails: 'Booking Details',
       verification: 'Verification',
       paymentStatus: 'Payment Status',
+      cancelBooking: 'Cancel Booking',
+      cancelConfirmTitle: 'Are you sure?',
+      cancelConfirmDesc: 'Cancelling this booking will free up your slot. You can book another time slot later.',
+      cancelSuccess: 'Your ration slot has been cancelled. You can now book another slot.',
     },
     verification: {
       title: 'Booking Verification',
