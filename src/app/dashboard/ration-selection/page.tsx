@@ -18,7 +18,8 @@ import {
   where,
   doc,
   runTransaction,
-  serverTimestamp
+  serverTimestamp,
+  orderBy
 } from 'firebase/firestore';
 import {
   Card,
@@ -210,15 +211,16 @@ export default function RationSelectionPage() {
       const currentMonth = dateStr.substring(0, 7); // YYYY-MM
       const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
       
-      // month-based document ID for strict single-use prevention
-      const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', currentMonth);
+      const citizenRef = doc(firestore, 'citizens', citizen.id);
+      const bookingRef = doc(collection(firestore, 'citizens', citizen.id, 'bookings'));
       const slotId = `${citizen.fpsCode}_${dateStr}_${slotIndex}`;
       const slotRef = doc(firestore, 'fps_slots', slotId);
 
       await runTransaction(firestore, async (transaction) => {
-        // 1. Month-based check
-        const bookingSnap = await transaction.get(bookingRef);
-        if (bookingSnap.exists()) {
+        // 1. Monthly check on Citizen document
+        const citizenSnap = await transaction.get(citizenRef);
+        const citizenData = citizenSnap.data();
+        if (citizenData?.lastBookingMonth === currentMonth) {
           throw new Error("A booking has already been made for this month.");
         }
 
@@ -243,7 +245,7 @@ export default function RationSelectionPage() {
           }));
 
         const baseUrl = window.location.origin;
-        const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${currentMonth}`;
+        const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${bookingRef.id}`;
 
         // 4. Updates
         transaction.set(slotRef, {
@@ -255,8 +257,14 @@ export default function RationSelectionPage() {
           updatedAt: serverTimestamp()
         }, { merge: true });
 
+        // Atomic lock for monthly limit
+        transaction.update(citizenRef, { 
+          lastBookingMonth: currentMonth 
+        });
+
         transaction.set(bookingRef, {
           date: dateStr,
+          month: currentMonth,
           timeSlot: data.timeSlot,
           slotIndex: slotIndex === -1 ? 0 : slotIndex,
           status: "Booked",
@@ -274,7 +282,7 @@ export default function RationSelectionPage() {
         });
       });
 
-      setGeneratedQRUrl(`${window.location.origin}/verify-booking/${citizen.id}/${currentMonth}`);
+      setGeneratedQRUrl(`${window.location.origin}/verify-booking/${citizen.id}/${bookingRef.id}`);
       setStep('qr');
 
       toast({
