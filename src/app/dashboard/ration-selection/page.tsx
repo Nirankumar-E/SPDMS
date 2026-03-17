@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -19,7 +20,8 @@ import {
   doc,
   runTransaction,
   serverTimestamp,
-  orderBy
+  orderBy,
+  getDoc
 } from 'firebase/firestore';
 import {
   Card,
@@ -56,9 +58,9 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
-import Header from '@/components/layout/header';
 import { QRCodeSVG } from 'qrcode.react';
 import { Progress } from '@/components/ui/progress';
+import Header from '@/components/layout/header';
 
 const RZP_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!; 
 const MAX_SLOT_CAPACITY = 16;
@@ -212,19 +214,19 @@ export default function RationSelectionPage() {
       const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
       
       const citizenRef = doc(firestore, 'citizens', citizen.id);
-      const bookingRef = doc(collection(firestore, 'citizens', citizen.id, 'bookings'));
+      const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', currentMonth);
       const slotId = `${citizen.fpsCode}_${dateStr}_${slotIndex}`;
       const slotRef = doc(firestore, 'fps_slots', slotId);
 
       await runTransaction(firestore, async (transaction) => {
-        // 1. Monthly check on Citizen document
-        const citizenSnap = await transaction.get(citizenRef);
-        const citizenData = citizenSnap.data();
-        if (citizenData?.lastBookingMonth === currentMonth) {
-          throw new Error("A booking has already been made for this month.");
+        const bookingSnap = await transaction.get(bookingRef);
+        if (bookingSnap.exists()) {
+          const bookingData = bookingSnap.data();
+          if (bookingData.status === 'Booked' || bookingData.status === 'Collected') {
+            throw new Error("A booking has already been made for this month.");
+          }
         }
 
-        // 2. Slot Capacity
         const slotSnap = await transaction.get(slotRef);
         let bookedCount = 0;
         if (slotSnap.exists()) {
@@ -235,7 +237,6 @@ export default function RationSelectionPage() {
           throw new Error("This time slot is full. Please select another time.");
         }
 
-        // 3. Prepare items
         const finalItems = Object.entries(selectedItems)
           .filter(([_, val]) => val.enabled)
           .map(([key, val]) => ({
@@ -245,9 +246,8 @@ export default function RationSelectionPage() {
           }));
 
         const baseUrl = window.location.origin;
-        const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${bookingRef.id}`;
+        const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${currentMonth}`;
 
-        // 4. Updates
         transaction.set(slotRef, {
           bookedCount: bookedCount + 1,
           maxCapacity: MAX_SLOT_CAPACITY,
@@ -257,7 +257,6 @@ export default function RationSelectionPage() {
           updatedAt: serverTimestamp()
         }, { merge: true });
 
-        // Atomic lock for monthly limit
         transaction.update(citizenRef, { 
           lastBookingMonth: currentMonth 
         });
@@ -279,10 +278,10 @@ export default function RationSelectionPage() {
           district: citizen.district || "",
           taluk: citizen.taluk || "",
           fpsCode: citizen.fpsCode || ""
-        });
+        }, { merge: true });
       });
 
-      setGeneratedQRUrl(`${window.location.origin}/verify-booking/${citizen.id}/${bookingRef.id}`);
+      setGeneratedQRUrl(`${window.location.origin}/verify-booking/${citizen.id}/${currentMonth}`);
       setStep('qr');
 
       toast({
