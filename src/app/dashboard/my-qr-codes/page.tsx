@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useDashboard } from '@/lib/dashboard-context';
@@ -51,24 +52,38 @@ export default function MyQRCodesPage() {
 
     setIsCancelling(booking.id);
     try {
-      // Use the booking month as the ID to match ration-selection logic
-      const currentMonth = booking.month || booking.date.substring(0, 7);
-      const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', currentMonth);
+      const currentMonth = booking.month;
+      const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', booking.id);
       const slotId = `${citizen.fpsCode}_${booking.date}_${booking.slotIndex}`;
       const slotRef = doc(firestore, 'fps_slots', slotId);
       const citizenRef = doc(firestore, 'citizens', citizen.id);
 
       await runTransaction(firestore, async (transaction) => {
+        const citizenSnap = await transaction.get(citizenRef);
+        const citizenData = citizenSnap.data() || {};
+        const usage = citizenData.monthlyUsage?.[currentMonth] || {};
+
         const slotSnap = await transaction.get(slotRef);
         const currentCount = slotSnap.exists() ? slotSnap.data().bookedCount || 0 : 0;
 
-        // 1. Update booking status and metadata
+        // 1. Update usage map (restore quota)
+        const newUsage = { ...usage };
+        if (booking.items) {
+          booking.items.forEach((item: any) => {
+            newUsage[item.name] = Math.max(0, (newUsage[item.name] || 0) - item.quantity);
+          });
+        }
+
+        transaction.update(citizenRef, { 
+          [`monthlyUsage.${currentMonth}`]: newUsage 
+        });
+
+        // 2. Update booking status
         const updateData: any = { 
           status: 'Cancelled',
           cancelledAt: serverTimestamp()
         };
 
-        // 2. Handle UPI Refund point-of-view
         if (booking.paymentMethod === 'upi') {
           updateData.paymentStatus = 'Refund Initiated';
           updateData.refundStatus = 'Pending';
@@ -77,12 +92,7 @@ export default function MyQRCodesPage() {
 
         transaction.update(bookingRef, updateData);
         
-        // 3. Reset the monthly limit lock on the Citizen document
-        transaction.update(citizenRef, { 
-          lastBookingMonth: null 
-        });
-        
-        // 4. Free up the slot capacity
+        // 3. Free up slot
         if (currentCount > 0) {
           transaction.update(slotRef, { bookedCount: currentCount - 1 });
         }
