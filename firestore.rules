@@ -17,9 +17,11 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow create: if isSignedIn();
         allow update: if isSignedIn() && 
-          (request.resource.data.status == 'Collected' || 
+          (request.resource.data.status == 'Booked' || 
+           request.resource.data.status == 'Collected' || 
            request.resource.data.status == 'Cancelled' || 
-           request.resource.data.paymentStatus == 'Completed');
+           request.resource.data.paymentStatus == 'Completed' ||
+           request.resource.data.paymentStatus == 'Refund Initiated');
       }
       
       allow delete: if false;
