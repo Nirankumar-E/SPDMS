@@ -51,7 +51,9 @@ export default function MyQRCodesPage() {
 
     setIsCancelling(booking.id);
     try {
-      const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', booking.id);
+      // Use the booking month as the ID to match ration-selection logic
+      const currentMonth = booking.month || booking.date.substring(0, 7);
+      const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', currentMonth);
       const slotId = `${citizen.fpsCode}_${booking.date}_${booking.slotIndex}`;
       const slotRef = doc(firestore, 'fps_slots', slotId);
       const citizenRef = doc(firestore, 'citizens', citizen.id);
@@ -76,7 +78,6 @@ export default function MyQRCodesPage() {
         transaction.update(bookingRef, updateData);
         
         // 3. Reset the monthly limit lock on the Citizen document
-        // This allows Requirement #3 & #5: re-booking in same month
         transaction.update(citizenRef, { 
           lastBookingMonth: null 
         });
