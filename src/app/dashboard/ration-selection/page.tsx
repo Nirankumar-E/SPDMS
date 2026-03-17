@@ -53,6 +53,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -232,7 +233,7 @@ export default function RationSelectionPage() {
       const slotId = `${citizen.fpsCode}_${dateStr}_${slotIndex}`;
       const slotRef = doc(firestore, 'fps_slots', slotId);
       
-      // Use a new document for every booking now that multiple bookings are allowed
+      // Use a new document for every booking
       const bookingRef = doc(collection(firestore, 'citizens', citizen.id, 'bookings'));
 
       await runTransaction(firestore, async (transaction) => {
