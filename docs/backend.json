@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Citizen": {
@@ -32,7 +33,15 @@
         },
         "lastBookingMonth": {
           "type": "string",
-          "description": "Stores the month of the last active booking to enforce the monthly limit (Format: YYYY-MM)."
+          "description": "Stores the month of the last active booking (Format: YYYY-MM)."
+        },
+        "monthlyUsage": {
+          "type": "object",
+          "description": "Tracks consumed quantities per item per month. Keys are month strings (YYYY-MM).",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "type": "number" }
+          }
         },
         "familyMembers": {
           "type": "array",
