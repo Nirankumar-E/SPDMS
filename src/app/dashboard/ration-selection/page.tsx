@@ -42,7 +42,8 @@ import {
   Loader2,
   Download,
   Clock,
-  Users
+  Users,
+  AlertTriangle
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -155,16 +156,30 @@ export default function RationSelectionPage() {
     return { ...citizen.rationAllocation };
   }, [citizen]);
 
+  // Calculate monthly remaining quota
+  const remainingQuotas = useMemo(() => {
+    if (!citizen) return {};
+    const currentMonth = format(new Date(), 'yyyy-MM');
+    const usage = citizen.monthlyUsage?.[currentMonth] || {};
+    
+    const remaining: Record<string, number> = {};
+    Object.entries(normalizedAllocation).forEach(([key, val]) => {
+      const max = parseFloat((val as string).split(' ')[0]) || 0;
+      const used = usage[key] || 0;
+      remaining[key] = Math.max(0, max - used);
+    });
+    return remaining;
+  }, [citizen, normalizedAllocation]);
+
   useEffect(() => {
     if (Object.keys(normalizedAllocation).length > 0 && Object.keys(selectedItems).length === 0) {
       const initial: Record<string, any> = {};
-      Object.entries(normalizedAllocation).forEach(([key, val]) => {
-        const qty = parseFloat((val as string).split(' ')[0]) || 0;
-        initial[key] = { enabled: true, quantity: qty };
+      Object.entries(remainingQuotas).forEach(([key, remaining]) => {
+        initial[key] = { enabled: remaining > 0, quantity: remaining };
       });
       setSelectedItems(initial);
     }
-  }, [normalizedAllocation]);
+  }, [remainingQuotas]);
 
   const totalAmount = useMemo(() => {
     return Object.entries(selectedItems).reduce((acc, [key, val]) => {
@@ -210,22 +225,41 @@ export default function RationSelectionPage() {
 
     try {
       const dateStr = format(data.date, 'yyyy-MM-dd');
-      const currentMonth = dateStr.substring(0, 7); // YYYY-MM
+      const currentMonth = dateStr.substring(0, 7);
       const slotIndex = TIME_SLOTS.indexOf(data.timeSlot);
       
       const citizenRef = doc(firestore, 'citizens', citizen.id);
-      const bookingRef = doc(firestore, 'citizens', citizen.id, 'bookings', currentMonth);
       const slotId = `${citizen.fpsCode}_${dateStr}_${slotIndex}`;
       const slotRef = doc(firestore, 'fps_slots', slotId);
+      
+      // Use a new document for every booking now that multiple bookings are allowed
+      const bookingRef = doc(collection(firestore, 'citizens', citizen.id, 'bookings'));
 
       await runTransaction(firestore, async (transaction) => {
-        const bookingSnap = await transaction.get(bookingRef);
-        if (bookingSnap.exists()) {
-          const bookingData = bookingSnap.data();
-          if (bookingData.status === 'Booked' || bookingData.status === 'Collected') {
-            throw new Error("A booking has already been made for this month.");
+        const citizenSnap = await transaction.get(citizenRef);
+        if (!citizenSnap.exists()) throw new Error("Citizen profile not found.");
+        const citizenData = citizenSnap.data();
+        
+        const usage = citizenData.monthlyUsage?.[currentMonth] || {};
+        
+        const finalItems = Object.entries(selectedItems)
+          .filter(([_, val]) => val.enabled && val.quantity > 0)
+          .map(([key, val]) => ({
+            name: key,
+            quantity: val.quantity,
+            unit: "Kg"
+          }));
+
+        if (finalItems.length === 0) throw new Error("Please select at least one item.");
+
+        // Validate quotas again inside transaction
+        finalItems.forEach(item => {
+          const max = parseFloat((normalizedAllocation[item.name] as string).split(' ')[0]) || 0;
+          const used = usage[item.name] || 0;
+          if (used + item.quantity > max) {
+            throw new Error(`Quota exceeded for ${item.name}. Remaining: ${max - used} Kg`);
           }
-        }
+        });
 
         const slotSnap = await transaction.get(slotRef);
         let bookedCount = 0;
@@ -237,16 +271,16 @@ export default function RationSelectionPage() {
           throw new Error("This time slot is full. Please select another time.");
         }
 
-        const finalItems = Object.entries(selectedItems)
-          .filter(([_, val]) => val.enabled)
-          .map(([key, val]) => ({
-            name: key,
-            quantity: val.quantity,
-            unit: "Kg"
-          }));
+        // Update Usage Map
+        const newUsage = { ...usage };
+        finalItems.forEach(item => {
+          newUsage[item.name] = (newUsage[item.name] || 0) + item.quantity;
+        });
 
-        const baseUrl = window.location.origin;
-        const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${currentMonth}`;
+        transaction.update(citizenRef, {
+          [`monthlyUsage.${currentMonth}`]: newUsage,
+          lastBookingMonth: currentMonth
+        });
 
         transaction.set(slotRef, {
           bookedCount: bookedCount + 1,
@@ -257,9 +291,8 @@ export default function RationSelectionPage() {
           updatedAt: serverTimestamp()
         }, { merge: true });
 
-        transaction.update(citizenRef, { 
-          lastBookingMonth: currentMonth 
-        });
+        const baseUrl = window.location.origin;
+        const verifyUrl = `${baseUrl}/verify-booking/${citizen.id}/${bookingRef.id}`;
 
         transaction.set(bookingRef, {
           date: dateStr,
@@ -278,10 +311,10 @@ export default function RationSelectionPage() {
           district: citizen.district || "",
           taluk: citizen.taluk || "",
           fpsCode: citizen.fpsCode || ""
-        }, { merge: true });
+        });
       });
 
-      setGeneratedQRUrl(`${window.location.origin}/verify-booking/${citizen.id}/${currentMonth}`);
+      setGeneratedQRUrl(`${window.location.origin}/verify-booking/${citizen.id}/${bookingRef.id}`);
       setStep('qr');
 
       toast({
@@ -298,7 +331,7 @@ export default function RationSelectionPage() {
     } finally {
       setIsProcessingPayment(false);
     }
-  }, [citizen, firestore, auth, selectedItems, totalAmount, bookingI18n.success, toast]);
+  }, [citizen, firestore, auth, selectedItems, totalAmount, bookingI18n.success, toast, normalizedAllocation]);
 
   const onSubmit = async (data: BookingFormValues) => {
     if (step !== 'payment') return;
@@ -360,6 +393,15 @@ export default function RationSelectionPage() {
       setStep('items');
       setTimeout(() => setIsTransitioning(false), 300);
     } else if (step === 'items') {
+      const hasSelection = Object.values(selectedItems).some(item => item.enabled && item.quantity > 0);
+      if (!hasSelection) {
+        toast({
+          variant: 'destructive',
+          title: 'Selection Required',
+          description: 'Please select at least one item with quantity > 0'
+        });
+        return;
+      }
       setIsTransitioning(true);
       setStep('payment');
       setTimeout(() => setIsTransitioning(false), 300);
@@ -514,24 +556,27 @@ export default function RationSelectionPage() {
                 {step === 'items' && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
                     <div className="flex items-center justify-between border-b pb-4">
-                      <h3 className="font-bold text-2xl text-gray-800">{bookingI18n.allocationTitle}</h3>
-                      <Badge variant="outline" className="text-primary border-primary px-4 py-1 rounded-full bg-primary/5">Limits</Badge>
+                      <div className="space-y-1">
+                        <h3 className="font-bold text-2xl text-gray-800">{bookingI18n.allocationTitle}</h3>
+                        <p className="text-sm text-muted-foreground">Select quantities within your monthly remaining quota.</p>
+                      </div>
+                      <Badge variant="outline" className="text-primary border-primary px-4 py-1 rounded-full bg-primary/5">Quota Managed</Badge>
                     </div>
                     <div className="grid grid-cols-1 gap-4">
                       {Object.entries(normalizedAllocation).map(([key, val]) => {
-                        const parts = (val as string).split(' ');
-                        const maxQty = parseFloat(parts[0]) || 0;
-                        const unit = parts[1] || 'Kg';
+                        const remaining = remainingQuotas[key] || 0;
+                        const unit = (val as string).split(' ')[1] || 'Kg';
                         
                         return (
                           <div key={key} className={cn(
                             "flex items-center justify-between p-5 rounded-[2.5rem] border-2 transition-all",
-                            selectedItems[key]?.enabled ? "border-primary bg-primary/5 shadow-md" : "border-gray-100 bg-white"
+                            selectedItems[key]?.enabled ? "border-primary bg-primary/5 shadow-md" : "border-gray-100 bg-white opacity-80"
                           )}>
                             <div className="flex items-center gap-5">
                               <Checkbox 
                                 id={`check-${key}`}
                                 checked={selectedItems[key]?.enabled}
+                                disabled={remaining <= 0}
                                 onCheckedChange={(checked) => 
                                   setSelectedItems(prev => ({ ...prev, [key]: { ...prev[key], enabled: !!checked } }))
                                 }
@@ -541,7 +586,13 @@ export default function RationSelectionPage() {
                                 <label htmlFor={`check-${key}`} className="text-lg font-bold capitalize cursor-pointer block">
                                   {i18n.data.items[key] || key}
                                 </label>
-                                <p className="text-sm text-muted-foreground font-medium">Max: {val as string}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm text-muted-foreground font-medium">Monthly Max: {val as string}</p>
+                                  <span className="text-gray-300">•</span>
+                                  <p className={cn("text-sm font-bold", remaining > 0 ? "text-green-600" : "text-destructive")}>
+                                    Remaining: {remaining} {unit}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-4">
@@ -549,15 +600,15 @@ export default function RationSelectionPage() {
                                   <Input 
                                     type="number"
                                     min={0}
-                                    max={maxQty}
-                                    step="0.01"
+                                    max={remaining}
+                                    step="0.1"
                                     value={selectedItems[key]?.quantity || 0}
                                     onChange={(e) => {
-                                      const v = Math.min(maxQty, Math.max(0, parseFloat(e.target.value) || 0));
+                                      const v = Math.min(remaining, Math.max(0, parseFloat(e.target.value) || 0));
                                       setSelectedItems(prev => ({ ...prev, [key]: { ...prev[key], quantity: v } }));
                                     }}
                                     className="w-24 text-right h-12 rounded-xl font-bold pr-10 border-2"
-                                    disabled={!selectedItems[key]?.enabled}
+                                    disabled={!selectedItems[key]?.enabled || remaining <= 0}
                                   />
                                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">{unit}</span>
                                 </div>
@@ -566,6 +617,15 @@ export default function RationSelectionPage() {
                         );
                       })}
                     </div>
+                    {Object.values(remainingQuotas).every(q => q <= 0) && (
+                      <Alert className="bg-amber-50 border-amber-200 text-amber-800 rounded-2xl">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Quota Exhausted</AlertTitle>
+                        <AlertDescription>
+                          You have fully utilized your ration quota for this month. New bookings will be available next month.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                 )}
 
